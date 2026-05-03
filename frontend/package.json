@@ -16,6 +16,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
     "@phosphor-icons/react": "^2.1.10",
+    "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/postcss": "^4.2.2",
     "@tailwindcss/vite": "^4.2.2",
     "axios": "^1.14.0",
