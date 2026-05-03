@@ -8,6 +8,7 @@ import {useForm} from "react-hook-form";
 import {zodResolver} from '@hookform/resolvers/zod'; 
 import { useAuthStore } from "@/stores/useAuthStore"
 import { useNavigate } from "react-router"
+import { Link } from "react-router-dom"
 
 
 const signUpSchema = z.object({
@@ -162,8 +163,8 @@ export function SignupForm({
 
               <div className="text-center text-sm">
                 Đã có tài khoản? {" "}
-                <a href="/signin"
-                className="underline underline-offset-4">Đăng nhập</a>
+                <Link to="/signin"
+                className="underline underline-offset-4">Đăng nhập</Link>
 
               </div>
             </div>
