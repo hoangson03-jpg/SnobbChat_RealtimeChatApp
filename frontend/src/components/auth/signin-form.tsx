@@ -112,7 +112,7 @@ export function SigninForm({
           </form>
           <div className="relative hidden bg-muted md:block">
             <img
-              src="../../public/placeholder.png"
+              src="/placeholder.png"
               alt="Image"
               className="absolute top-1/2 -translate-y-1/2 w-full object-cover"
             />

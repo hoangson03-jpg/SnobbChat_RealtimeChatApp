@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
-import tailwindScrollbar from 'tailwind-scrollbar'
+import tailwindScrollbar from "tailwind-scrollbar";
 
 export default {
   content: [
@@ -20,12 +20,6 @@ export default {
     },
     extend: {
       colors: {
-        "page-glow": "var(--page-gradient)", // Gọi trực tiếp biến gradient
-        "ocean-deep": "#0f172a",
-        "cyan-soft": {
-        DEFAULT: "hsl(var(--cyan-soft))",
-        foreground: "hsl(var(--cyan-soft-foreground))",
-      },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

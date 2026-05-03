@@ -9,7 +9,6 @@
     /* Base colors - soft pastels */
     --background: 0 0% 100%; /*violet-50*/
     --foreground: 217.2 32.6% 17.5%; /* slate-800 */
-    --page-glow: radial-gradient(circle at top center, rgba(59, 130, 246, 0.5), transparent 70%);
 
     /* Card system */
     --card: 250 100% 99%;
@@ -26,10 +25,6 @@
     /* Hồng */
     --primary-glow: 320 100% 70%;
 
-    /* Cyan */
-    --cyan-soft: 185 80% 95%; 
-    --cyan-soft-foreground: 185 90% 25%;
-
     /* Secondary - lavender */
     --secondary: 270 50% 92%;
     --secondary-foreground: 280 100% 40%;
@@ -41,11 +36,6 @@
     /* Accent - cyan */
     --accent: 180 100% 75%;
     --accent-foreground: 240 100% 15%;
-
-    /* Button */
-    --sky-button: 217 91% 60% / 0.5; 
-    --sky-button-hover: 217 91% 60% / 0.7;
-    --sky-button-foreground: 217 91% 20%;
 
     /* Chat colors */
     --chat-bubble-sent: 271 79% 47%;
@@ -78,9 +68,6 @@
     --radius: 1rem;
 
     /* Gradients */
-    --page-gradient: radial-gradient(circle at center, #93c5fd 0%, transparent 70%);
-    --page-bg: #ffffff;
-
     --gradient-primary: linear-gradient(
       135deg,
       hsl(var(--primary)),
@@ -101,12 +88,6 @@
       135deg,
       hsl(250, 100%, 98%) 0%,
       hsl(260, 50%, 96%) 100%
-    );
-
-    --gradient-cyan: linear-gradient(
-      135deg,
-      hsl(var(--cyan-soft)),
-      hsl(190, 100%, 90%)
     );
 
     /* pattern craft */
@@ -147,8 +128,6 @@
     /* Dark mode - neon on dark aesthetic */
     --background: 240 15% 18%;
     --foreground: 214.3 31.8% 91.4%; /* slate-200 */
-    --background-dark: 222 47% 11%;
-    
 
     --card: 240 15% 12%;
     --card-foreground: 214.3 31.8% 91.4%;
@@ -169,9 +148,6 @@
     --accent: 180 100% 60%;
     --accent-foreground: 240 15% 8%;
 
-    --cyan-soft: 185 40% 15%; 
-    --cyan-soft-foreground: 185 100% 85%;
-
     /* Chat bubbles in dark mode */
     --chat-bubble-sent: 280 100% 65%;
     --chat-bubble-sent-foreground: 0 0% 100%;
@@ -190,16 +166,7 @@
     --input: 240 15% 18%;
     --ring: 280 100% 70%;
 
-    /* Button */
-    --sky-button: 217 91% 50% / 0.4;
-    --sky-button-hover: 217 91% 50% / 0.6;
-    --sky-button-foreground: 210 40% 98%;
-
     /* Dark mode gradients */
-    --gradient-deep-ocean: radial-gradient(70% 55% at 50% 50%, #2a5d77 0%, #184058 18%, #0f2a43 34%, #0a1b30 50%, #071226 66%, #040d1c 80%, #020814 92%, #01040d 97%, #000309 100%), 
-                           radial-gradient(160% 130% at 10% 10%, rgba(0,0,0,0) 38%, #000309 76%, #000208 100%), 
-                           radial-gradient(160% 130% at 90% 90%, rgba(0,0,0,0) 38%, #000309 76%, #000208 100%);
-    --page-glow: radial-gradient(circle 600px at 50% 50%, rgba(59, 130, 246, 0.3), transparent);
     --gradient-primary: linear-gradient(
       135deg,
       hsl(280, 100%, 70%),
@@ -270,14 +237,12 @@
     @apply bg-[hsl(var(--chat-bubble-received))] text-[hsl(var(--chat-bubble-received-foreground))] border border-border/50;
   }
 
-  /* error message */
   .error-message {
-    @apply text-sm text-destructive
+    @apply text-sm text-destructive;
   }
 
-  /* success message */
   .success-message {
-    @apply text-sm text-emerald-500
+    @apply text-sm text-emerald-500;
   }
 
   /* Status indicators */
@@ -292,32 +257,6 @@
   /* Gradient backgrounds */
   .bg-gradient-primary {
     background: var(--gradient-primary);
-  }
-
-  .bg-app-dynamic {
-    @apply min-h-screen w-full transition-colors duration-500;
-    background-color: hsl(var(--background));
-    background-image: var(--page-glow);
-    background-attachment: fixed;
-  }
-
-  .bg-dark-ocean-glow {
-    background-color: hsl(var(--background-dark));
-    background-image: var(--dark-gradient-glow);
-    background-attachment: fixed;
-    position: relative;
-    width: 100%;
-    min-height: 100vh;
-    overflow: hidden;
-  }
-
-  .bg-app-main {
-    background-color: var(--page-bg);
-    background-image: var(--page-gradient);
-    background-attachment: fixed;
-    position: relative;
-    width: 100%;
-    min-height: 100vh;
   }
 
   .bg-gradient-chat {
@@ -351,8 +290,7 @@
 
   /* Scrollbar */
   .beautiful-scrollbar {
-    @apply scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent
-    dark:scrollbar-thumb-slate-600;
+    @apply scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent dark:scrollbar-thumb-slate-600;
   }
 
   /* Animations */
@@ -366,15 +304,13 @@
 
   /* Pulse ring for unread messages */
   .pulse-ring {
-  @apply relative;
-  z-index: 0;
-}
+    @apply relative;
+  }
 
   .pulse-ring::before {
-  content: "";
-  @apply absolute inset-0 rounded-full bg-primary/30 animate-ping duration-[2000ms];
-  z-index: 0; /* 👈 thêm dòng này */
-}
+    content: "";
+    @apply absolute inset-0 rounded-full bg-primary/30 animate-ping duration-[2000ms];
+  }
 
   /* Message bounce in animation */
   .message-bounce {
@@ -390,5 +326,47 @@
       opacity: 1;
       transform: translateY(0) scale(1);
     }
+  }
+}
+
+:root {
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+.dark {
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
