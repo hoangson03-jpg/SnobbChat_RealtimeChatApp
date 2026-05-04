@@ -9,7 +9,8 @@ export const friendService = {
 
     async sendFriendRequest(to: string, message?: string) {
         const res = await api.post("/friends/requests", {to, message});
-        return res.data.message;
+        // Đổi từ return res.data.message thành return res.data
+        return res.data; 
     },
 
     async getAllFriendRequest() {
@@ -25,9 +26,10 @@ export const friendService = {
     async acceptRequest(requestId: string) {
         try {
             const res = await api.post(`/friends/requests/${requestId}/accept`);
-            return res.data.requestAcceptedBy;
+            return res.data.newFriend; 
         } catch (error) {
             console.error("Lỗi khi gửi acceptRequest", error);
+            throw error;
         }
     },
 

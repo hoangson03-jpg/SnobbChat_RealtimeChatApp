@@ -24,6 +24,7 @@ const FriendRequestItem = ({requestInfo, actions, type} : RequestItemProps)  => 
             <UserAvatar 
             type="sidebar"
             name={info.displayName}
+            avatarURL={info.avatarURL}
             />
             <div>
                 <p className="font-medium">{info.displayName}</p>

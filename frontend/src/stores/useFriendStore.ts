@@ -8,6 +8,7 @@ export const useFriendStore = create <FriendState>((set, get) => ({
     friends: [],
     receivedList: [],
     sentList: [],
+    
     searchByUsername: async (username) => {
         try {
             set({loading: true});
@@ -27,22 +28,32 @@ export const useFriendStore = create <FriendState>((set, get) => ({
         try {
             set({ loading: true });
 
-            const resultMessage = await friendService.sendFriendRequest(to, message);
+            // Lấy data từ service (đã sửa ở bước 2 để nhận về cả request)
+            const data = await friendService.sendFriendRequest(to, message);
 
-            return resultMessage;
+            // THÊM DÒNG NÀY: Cập nhật UI ngay lập tức cho người gửi
+            set((state) => ({
+                sentList: [data.request, ...state.sentList]
+            }));
+
+            // Vẫn return message để UI hiển thị thông báo (toast) như cũ
+            return data.message;
 
         } catch (error: any) {
             console.error("Lỗi xảy ra khi add friend", error);
-
-            // lấy message từ backend nếu có
             const msg = error?.response?.data?.message || "Gửi kết bạn thất bại";
-
-            throw new Error(msg); // ❗ QUAN TRỌNG
-
+            throw new Error(msg);
         } finally {
             set({ loading: false });
         }
     },
+    addReceivedRequest: (request) => set((state) => ({
+        receivedList: [request, ...state.receivedList]
+    })),
+    // Lọc bỏ request bị từ chối khỏi danh sách đã gửi
+    removeSentRequest: (requestId) => set((state) => ({
+        sentList: state.sentList.filter((r) => r._id !== requestId)
+    })),
     getAllFriendRequests: async () => {
         try {
             set({loading: true});
@@ -66,15 +77,27 @@ export const useFriendStore = create <FriendState>((set, get) => ({
     acceptRequest: async (requestId) => {
         try {
             set({loading: true});
-            await friendService.acceptRequest(requestId);
+            // Lấy thông tin bạn mới từ API
+            const newFriend = await friendService.acceptRequest(requestId);
 
             set((state) => ({
-                receivedList: state.receivedList.filter((r) => r._id !== requestId)
+                // Xóa khỏi danh sách chờ
+                receivedList: state.receivedList.filter((r) => r._id !== requestId),
+                // Thêm luôn vào danh sách bạn bè
+                friends: [newFriend, ...state.friends] 
             }))
         } catch (error) {
             console.error("Lỗi khi accept request", error);
+        } finally {
+            set({loading: false});
         }
     },
+    handleFriendAcceptedSocket: (requestId, newFriend) => set((state) => ({
+        // Xóa lời mời khỏi danh sách đã gửi
+        sentList: state.sentList.filter((r) => r._id !== requestId),
+        // Thêm bạn mới vào danh sách
+        friends: [newFriend, ...state.friends]
+    })),
     declineRequest: async (requestId) => {
         try {
             set({loading: true});

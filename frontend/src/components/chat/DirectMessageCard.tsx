@@ -52,7 +52,7 @@ const DirectMessageCard = ({convo} : {convo: Conversation}) => {
       {/* todo: user avatar */}
       <UserAvatar type="sidebar" 
       name={otherUser.displayName ?? ""}
-      avatarURL={otherUser.avatarUrl ?? undefined}
+      avatarURL={otherUser.avatarURL ?? undefined}
       />
       {/* socket io */}
       {/* todo: status badge */}

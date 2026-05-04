@@ -54,6 +54,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
             console.error(error);
             toast.error('Đăng nhập thất bại!')
+            throw error;
         }
         finally {
             set({ loading: false});

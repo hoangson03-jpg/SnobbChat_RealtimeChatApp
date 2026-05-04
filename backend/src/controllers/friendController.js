@@ -1,6 +1,7 @@
 import Friend from '../models/Friend.js'
 import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
+import {io} from '../socket/index.js'
 
 
 export const sendFriendRequest = async (req, res) => {
@@ -51,6 +52,13 @@ export const sendFriendRequest = async (req, res) => {
             message,
         });
 
+         await request.populate([
+            { path: "from", select: "_id username displayName avatarURL" },
+            { path: "to", select: "_id username displayName avatarURL" }
+        ]);
+
+        io.to(to.toString()).emit("friend-request", { request });
+
         return res.status(201).json({message: "Gửi lời mời kết bạn thành công", request})
 
     } catch (error) {
@@ -61,7 +69,6 @@ export const sendFriendRequest = async (req, res) => {
 
 export const acceptFriendRequest = async (req, res) => {
     try {
-        
         const {requestId} = req.params;
         const userId = req.user._id;
 
@@ -74,20 +81,38 @@ export const acceptFriendRequest = async (req, res) => {
             return res.status(403).json({message: "Bạn không có quyền chấp nhận lời mời này"})
         }
 
-        const friend = await Friend.create({
+        await Friend.create({
             userA: request.from,
             userB: request.to
         });
 
         await FriendRequest.findByIdAndDelete(requestId);
 
-        const from = await User.findById(request.from).select('_id displayName avatarURL').lean();
+        // Lấy thông tin người gửi (để trả về API cho người bấm Accept)
+        const fromUser = await User.findById(request.from).select('_id displayName avatarURL username').lean();
+        
+        // Lấy thông tin người nhận (để bắn Socket báo cho người gửi)
+        const toUser = await User.findById(request.to).select('_id displayName avatarURL username').lean();
 
-        return res.status(200).json({message: "Chấp nhận lời mời kết bạn thành công!",
-            newFriend:{
-                _id: from?._id,
-                displayName: from?.displayName,
-                avatarURL: from?.avatarURL,
+        // Bắn cho người gửi (request.from)
+        io.to(request.from.toString()).emit("friend-accepted", {
+            requestId: requestId,
+            newFriend: {
+                _id: toUser._id,
+                displayName: toUser.displayName,
+                avatarURL: toUser.avatarURL,
+                username: toUser.username
+            }
+        });
+
+        // Trả API về cho người bấm Accept
+        return res.status(200).json({
+            message: "Chấp nhận lời mời kết bạn thành công!",
+            newFriend: {
+                _id: fromUser._id,
+                displayName: fromUser.displayName,
+                avatarURL: fromUser.avatarURL,
+                username: fromUser.username
             },
         });
 
@@ -99,7 +124,6 @@ export const acceptFriendRequest = async (req, res) => {
 
 export const declineFriendRequest = async (req, res) => {
     try {
-        
         const {requestId} = req.params;
         const userId = req.user._id;
 
@@ -115,9 +139,10 @@ export const declineFriendRequest = async (req, res) => {
 
         await FriendRequest.findByIdAndDelete(requestId);
 
-        return res.sendStatus(204).json({message: "Đã từ chối lời mời kết bạn", request});
+        // Bắn socket báo cho NGƯỜI GỬI biết là request đã bị từ chối
+        io.to(request.from.toString()).emit("friend-request-declined", { requestId });
 
-        
+        return res.status(200).json({message: "Đã từ chối lời mời kết bạn", request});
 
     } catch (error) {
         console.error('Lỗi khi từ chối lời mời kết bạn', error);

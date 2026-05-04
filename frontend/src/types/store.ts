@@ -71,7 +71,7 @@ export interface ChatState {
     // update convo
     updateConversation: (conversation: Partial<Conversation>) => Promise<void>;
     markAsSeen: () => Promise<void>;
-    addConvo: (convo: Conversation) => void;
+     addConvo: (convo: Conversation, setActive?: boolean) => void; 
     createConversation: (type: "group" | "direct", name: string, memberIds: string[]) => Promise<void>;
 }
 
@@ -93,6 +93,9 @@ export interface FriendState {
     acceptRequest: (requestId: string) => Promise<void>;
     declineRequest: (requestId: string) => Promise<void>;
     getFriends: () => Promise<void>;
+    addReceivedRequest: (request: any) => void; 
+    removeSentRequest: (requestId: string) => void;
+    handleFriendAcceptedSocket: (requestId: string, newFriend: any) => void;
 }
 
 export interface UserState {

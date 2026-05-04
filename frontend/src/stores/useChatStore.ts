@@ -57,29 +57,37 @@ export const useChatStore = create<ChatState>()(
                     set({messagesLoading: true});
 
                     try {
-                        const {messages: fetched, cursor} = await chatService.fetchMessages(convoId, nextCursor);
+                const {messages: fetched, cursor} = await chatService.fetchMessages(convoId, nextCursor);
 
-                         const processed = fetched.map((m) => ({
-                            ...m, 
-                            isOwn: m.senderId === user?._id
-                        }));
+                 const processed = fetched.map((m) => ({
+                    ...m, 
+                    isOwn: m.senderId === user?._id
+                }));
 
-                        set((state) => {
-                            const prev = state.messages[convoId]?.items ?? [];
-                            const merge = prev.length > 0 ? [...processed, ...prev] : processed;
+                set((state) => {
+                    const prev = state.messages[convoId]?.items ?? [];
+                    
+                    //  FIX DUPLICATE TIN NHẮN TẠI ĐÂY: Hợp nhất và loại bỏ các tin nhắn trùng id
+                    const allMessages = [...processed, ...prev];
+                    const uniqueMessages = Array.from(
+                        new Map(allMessages.map(item => [item._id, item])).values()
+                    );
+                    
+                    // Sắp xếp lại đảm bảo tin nhắn mới nhất nằm trên cùng (desc)
+                    uniqueMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-                            return {
-                                messages: {
-                                    ...state.messages,
-                                    [convoId]: {
-                                        items: merge,
-                                        hasMore: !!cursor,
-                                        nextCursor: cursor ?? null,
-                                    },
-                                },
-                            };
-                        });
-                    } catch (error) {
+                    return {
+                        messages: {
+                            ...state.messages,
+                            [convoId]: {
+                                items: uniqueMessages, // Thay vì merge mảng đơn thuần
+                                hasMore: !!cursor,
+                                nextCursor: cursor ?? null,
+                            },
+                        },
+                    };
+                });
+                } catch (error) {
                         console.error("Lỗi xảy ra khi fetchMessages: ", error);
                     } finally {
                         set({messagesLoading: false});
@@ -207,41 +215,35 @@ export const useChatStore = create<ChatState>()(
                         console.error("Lỗi xảy ra khi gọi markAsSeen trong store:", error);
                     }
                 },
-                addConvo: (convo) => {
-                    set((state) => {
-                        const exists = state.conversations.some((c) => c._id.toString() === convo._id.toString());
+                addConvo: (convo, setActive = false) => {
+            set((state) => {
+                const exists = state.conversations.find((c) => c._id.toString() === convo._id.toString());
 
-                        return {
-                            conversations: exists ? state.conversations : [convo, ...state.conversations],
-                            activeConversationId: convo._id
-                        }
-                    })
-                },
+                return {
+                    // Nếu đã tồn tại thì update nó với data mới nhất (để đồng bộ tên, avatar,...), chưa có thì thêm mới
+                    conversations: exists 
+                        ? state.conversations.map(c => c._id.toString() === convo._id.toString() ? { ...c, ...convo } : c)
+                        : [convo, ...state.conversations],
+                        
+                    // Chỉ set active khi hành động này do BẢN THÂN USER bấm tạo/chọn chat (setActive = true)
+                    activeConversationId: setActive ? convo._id : state.activeConversationId
+                }
+            })
+        },
                 createConversation: async (type, name, memberIds) => {
-                    try {
-                        set({ loading: true });
+                     try {
+                set({ loading: true });
+                const conversation = await chatService.createConversation(type, name, memberIds);
+                if (!conversation) return null;
 
-                        const conversation = await chatService.createConversation(
-                        type,
-                        name,
-                        memberIds
-                        );
+                // 🔥 GỌI addConvo VÀ TRUYỀN true ĐỂ MÌNH ĐƯỢC REDIRECT ĐẾN CHAT ĐÓ
+                get().addConvo(conversation, true);
 
-                        if (!conversation) return null;
+                useSocketStore.getState().socket?.emit("join-conversation", conversation._id);
+                // set({ activeConversationId: conversation._id }); // Có thể bỏ dòng này vì addConvo đã làm rồi
 
-                        // add vào store
-                        get().addConvo(conversation);
-
-                        // 🔥 join socket room
-                        useSocketStore
-                        .getState()
-                        .socket?.emit("join-conversation", conversation._id);
-
-                        // 🔥 set active (đảm bảo UI sync)
-                        set({ activeConversationId: conversation._id });
-
-                        return conversation; // ✅ QUAN TRỌNG
-                    } catch (error) {
+                return conversation; 
+            } catch (error) {
                         console.error("Lỗi createConversation", error);
                         return null;
                     } finally {
