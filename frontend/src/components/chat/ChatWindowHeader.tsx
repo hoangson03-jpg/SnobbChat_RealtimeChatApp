@@ -50,7 +50,7 @@ useEffect(() => {
                         <UserAvatar
                         type={'sidebar'}
                         name={otherUser?.displayName ?? "Snobbchat"}
-                        avatarURL={otherUser?.avatarUrl ?? ""}
+                        avatarURL={otherUser?.avatarURL ?? ""}
                         />
                         {/* todo: socket io */}
                         <StatusBadge status={onlineUsers.includes(otherUser?._id ?? "") ? "online" : "offline"} />
