@@ -33,6 +33,36 @@ export const searchUserByUsername = async (req, res) => {
     }
 }
 
+export const searchUsers = async (req, res) => {
+    try {
+        const { q, page = 1, limit = 10 } = req.query;
+        const currentUserId = req.user._id;
+
+        const skip = (Number(page) - 1) * Number(limit);
+
+        // Tìm user có username hoặc displayName chứa từ khóa, không phân biệt hoa thường
+        const users = await User.find({
+            _id: { $ne: currentUserId }, // Không tìm chính mình
+            $or: [
+                { username: { $regex: q, $options: "i" } },
+                { displayName: { $regex: q, $options: "i" } }
+            ]
+        })
+        .select('_id username displayName avatarURL')
+        .skip(skip)
+        .limit(Number(limit))
+        .lean();
+
+        // Kiểm tra xem còn data để load thêm không
+        const hasMore = users.length === Number(limit);
+
+        return res.status(200).json({ users, hasMore });
+    } catch (error) {
+        console.error("Lỗi tìm kiếm user:", error);
+        return res.status(500).json({ message: "Lỗi hệ thống" });
+    }
+}
+
 export const uploadAvatar = async (req, res) => {
     try {
         const file = req.file;

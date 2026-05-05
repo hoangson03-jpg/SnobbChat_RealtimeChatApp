@@ -87,6 +87,10 @@ export interface FriendState {
     loading: boolean; // để biết khi nào api chạy xong
     receivedList: FriendRequest[];
     sentList: FriendRequest[];
+    searchResults: User[];
+    searchPage: number;
+    searchHasMore: boolean;
+    searchQuery: string;
     searchByUsername: (username: string) => Promise<User | null>;
     addFriend: (to: string, message?: string) => Promise<string>;
     getAllFriendRequests: () => Promise<void>;
@@ -96,6 +100,8 @@ export interface FriendState {
     addReceivedRequest: (request: any) => void; 
     removeSentRequest: (requestId: string) => void;
     handleFriendAcceptedSocket: (requestId: string, newFriend: any) => void;
+    searchUsersList: (query: string, page?: number) => Promise<void>;
+    resetSearch: () => void;
 }
 
 export interface UserState {

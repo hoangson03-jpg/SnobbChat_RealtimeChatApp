@@ -26,7 +26,7 @@ export const updateConversationAfterCreateMessage = (conversation, message, send
         );
     });
 
-    // 🔥 QUAN TRỌNG
+    // QUAN TRỌNG
     conversation.markModified("unreadCounts");
 };
 
@@ -44,7 +44,7 @@ export const emitNewMessage = (io, conversation, message) => {
         unreadCounts: conversation.unreadCounts
     });
 
-    // 🔥 QUAN TRỌNG: emit cho từng user
+    // emit cho từng user
     conversation.participants.forEach((p) => {
         const userId = p.userId.toString();
 

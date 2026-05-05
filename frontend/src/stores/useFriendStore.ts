@@ -8,6 +8,10 @@ export const useFriendStore = create <FriendState>((set, get) => ({
     friends: [],
     receivedList: [],
     sentList: [],
+    searchResults: [],
+    searchHasMore: false,
+    searchPage: 0,
+    searchQuery: "",
     
     searchByUsername: async (username) => {
         try {
@@ -24,6 +28,25 @@ export const useFriendStore = create <FriendState>((set, get) => ({
             set({loading: false});
         }
     },
+    searchUsersList: async (query, page = 1) => {
+    try {
+        set({ loading: true });
+        // Gọi API: /users/search?q=${query}&page=${page}&limit=10
+        const res = await friendService.searchUsersList(query, page); 
+        
+        set((state) => ({
+            searchResults: page === 1 ? res.users : [...state.searchResults, ...res.users],
+            searchPage: page,
+            searchHasMore: res.hasMore,
+            searchQuery: query
+        }));
+    } catch (error) {
+        console.error(error);
+    } finally {
+        set({ loading: false });
+    }
+},
+    resetSearch: () => set({ searchResults: [], searchPage: 1, searchHasMore: false, searchQuery: "" }),
     addFriend: async (to, message) => {
         try {
             set({ loading: true });

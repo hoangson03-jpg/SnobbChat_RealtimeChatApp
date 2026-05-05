@@ -28,6 +28,8 @@ import { useState } from "react"
 import FriendRequestDialog from "../friendRequest/FriendRequestDialog"
 import ProfileDialog from "../profile/ProfileDialog"
 
+import { useFriendStore } from "@/stores/useFriendStore" 
+
 export function NavUser({
   user,
 }: {
@@ -36,6 +38,10 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const [friendRequestOpen, setFriendRequestOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  // Danh sách lời mời kết bạn
+  const receivedList = useFriendStore((state) => state.receivedList);
+  const pendingRequestsCount = receivedList.length;
   return (
     <><SidebarMenu>
       <SidebarMenuItem>
@@ -45,10 +51,17 @@ export function NavUser({
               <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
             }
           >
-            <Avatar>
-              <AvatarImage src={user.avatarURL} alt={user.displayName} />
-              <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+                <Avatar>
+                  <AvatarImage src={user.avatarURL} alt={user.displayName} />
+                  <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                {/* Đây là chấm đỏ để hiển thị rằng có lời mời kết bạn/ có thông báo gửi tới */}
+                 {pendingRequestsCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 ring-2 ring-background"></span>
+                )}
+              </div>
+
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.displayName}</span>
               <span className="truncate text-xs">{user.username}</span>
@@ -82,12 +95,20 @@ export function NavUser({
                 Tài khoản
               </DropdownMenuItem>
               <DropdownMenuItem
-              onClick={() => setFriendRequestOpen(true)}
-              >
-                <BellIcon className="text-muted-foreground dark:group-focus:!text-accent-foreground"
-                />
-                Thông báo
-              </DropdownMenuItem>
+                  onClick={() => setFriendRequestOpen(true)}
+                  className="flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    <BellIcon className="mr-2 h-4 w-4 text-muted-foreground dark:group-focus:!text-accent-foreground" />
+                    Thông báo
+                  </div>
+                  {/* Badge hiển thị số lượng thông báo */}
+                  {pendingRequestsCount > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
+                      {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
+                    </span>
+                  )}
+                </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer" variant="destructive">
