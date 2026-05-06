@@ -169,6 +169,36 @@ export const useChatStore = create<ChatState>()(
                         ),
                     }));
                 },
+                deleteConversation: async (conversationId: string) => {
+        try {
+            set({ loading: true });
+            
+            await chatService.deleteConversation(conversationId);
+
+            set((state) => {
+                // Xóa khỏi danh sách hội thoại bên Sidebar
+                const updatedConversations = state.conversations.filter(
+                    (c) => c._id !== conversationId
+                );
+
+                // Nếu hội thoại đang mở chính là hội thoại bị xóa -> Đóng màn hình chat
+                const newActiveId = state.activeConversationId === conversationId 
+                    ? null 
+                    : state.activeConversationId;
+
+                return {
+                    conversations: updatedConversations,
+                    activeConversationId: newActiveId,
+                };
+            });
+
+                } catch (error) {
+                    console.error("Lỗi xóa hội thoại:", error);
+                    throw error;
+                } finally {
+                    set({ loading: false });
+                }
+            },
                 markAsSeen: async () => {
                     try {
                         const { user } = useAuthStore.getState();

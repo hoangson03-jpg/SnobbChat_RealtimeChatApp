@@ -19,7 +19,7 @@ const GroupChatAvatar = ({participants, type} : GroupChatAvatarProps) => {
         key={i}
         type={type}
         name={member.displayName}
-        avatarURL={member?.avatarUrl ?? undefined}/>
+        avatarURL={member?.avatarURL ?? undefined}/>
     );
   }
   return (

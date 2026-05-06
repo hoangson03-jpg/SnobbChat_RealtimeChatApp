@@ -43,6 +43,11 @@ export const chatService = {
     async createConversation (type: "direct" | "group", name: string, memberIds: string[]) {
         const res = await api.post("/conversations", {type, name, memberIds});
         return res.data.formatted;
+    },
+
+    async deleteConversation(conversationId: string) {
+        const res = await api.delete(`/conversations/${conversationId}`);
+        return res.data;
     }
 }
 

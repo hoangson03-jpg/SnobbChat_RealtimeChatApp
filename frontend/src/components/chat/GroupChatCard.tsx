@@ -1,15 +1,18 @@
 import { useAuthStore } from '@/stores/useAuthStore'
 import type { Conversation } from '@/types/chat'
-import React from 'react'
+import React, { useState } from 'react'
 import ChatCard from './ChatCard';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/stores/useChatStore';
 import UnreadCountBadge from './UnreadCountBadge';
 import GroupChatAvatar from './GroupChatAvatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { Ellipsis, Trash2 } from 'lucide-react';
 
 const GroupChatCard = ({convo} : {convo: Conversation}) => {
   const {user} = useAuthStore();
   const {activeConversationId, setActiveConversation, messages, fetchMessages} = useChatStore();
+  const [openAlert, setOpenAlert] = useState(false);
 
     if(!user) return null;
 
@@ -53,6 +56,28 @@ const GroupChatCard = ({convo} : {convo: Conversation}) => {
         {convo.participants.length} thành viên
       </p>
     }
+    rightSection={
+                <DropdownMenu>
+                    <DropdownMenuTrigger 
+                        className="p-1 rounded-md hover:bg-background/80 outline-none flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Ellipsis className="size-4 text-muted-foreground" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                            className="text-red-500 cursor-pointer"
+                            onClick={(e) => {
+                                e.stopPropagation(); 
+                                setOpenAlert(true);
+                            }}
+                        >
+                                    <Trash2 className="mr-2 size-4" />
+                                    Xóa hội thoại
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    }
     />
   )
 }
