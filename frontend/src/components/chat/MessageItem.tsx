@@ -4,6 +4,8 @@ import React from 'react'
 import UserAvatar from './UserAvatar';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { replaceTextWithEmoji } from '@/lib/emojiMap';
+
 
 interface MessageItemProps {
     message: Message;
@@ -37,6 +39,31 @@ const MessageItem = ({message, index, messages, selectedConvo, lastMessageStatus
     const participant = selectedConvo.participants?.find(
         (p) => String(p._id) === String(message.senderId)
     );
+
+    // Xử lý text thành emoji
+    const content = message.content ?? "";
+    const parsedContent = replaceTextWithEmoji(content);
+
+    // tin nhắn chỉ gồm 1 emoji duy nhất
+    const checkIsBigEmoji = (text: string) => {
+    if (!text) return false;
+    const trimmed = text.trim();
+    
+    // 1. Kiểm tra độ dài (thường chỉ phóng to nếu dưới 3 emoji)
+    if (trimmed.length > 8) return false; 
+
+    // 2. Regex này kiểm tra xem có chứa chữ cái hoặc chữ số không
+    // Nếu có chữ hoặc số thì KHÔNG PHẢI là "Big Emoji"
+    const hasAlphaNumeric = /[a-zA-Z0-9áàảãạâấầẩẫậăắằẳẵặéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ]/i.test(trimmed);
+    
+    // 3. Sử dụng Extended_Pictographic để chỉ định danh các icon hình ảnh
+    // và đảm bảo toàn bộ chuỗi chỉ chứa emoji
+    const isOnlyEmoji = /^(\p{Extended_Pictographic}|\s)+$/u.test(trimmed);
+
+    return isOnlyEmoji && !hasAlphaNumeric;
+};
+
+const isBigEmoji = checkIsBigEmoji(parsedContent);
      
   return (
     <div className="flex flex-col w-full">
@@ -58,10 +85,14 @@ const MessageItem = ({message, index, messages, selectedConvo, lastMessageStatus
             {/* Khối nội dung */}
             <div className={cn("max-w-[70%] flex flex-col", isOwn ? "items-end" : "items-start")}>
                 <Card className={cn(
-                    "p-3 rounded-2xl shadow-none border-none", 
-                    isOwn ? "bg-primary text-primary-foreground rounded-br-none" : "bg-muted rounded-bl-none"
+                    "p-3 rounded-2xl shadow-none border-none transition-all", 
+                    isBigEmoji 
+                        ? "bg-transparent !p-0 text-4xl" // Nếu chỉ có emoji thì ẩn nền và phóng to
+                        : (isOwn ? "bg-primary text-primary-foreground rounded-br-none" : "bg-muted rounded-bl-none")
                 )}>
-                    <p className='text-sm leading-relaxed break-words'>{message.content}</p>
+                    <p className='leading-relaxed break-words whitespace-pre-wrap'>
+                        {parsedContent}
+                    </p>
                 </Card>
                 
                 {/* Status: Seen / Delivered (Chỉ hiện cho tin nhắn cuối cùng của mình) */}
