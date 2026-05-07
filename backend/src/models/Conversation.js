@@ -9,7 +9,11 @@ const participantsSchema = new mongoose.Schema({
         joinedAt: {
             type: Date,
             default: Date.now,
-        }
+        },
+        clearedAt: {
+        type: Date,
+        default: null // null nghĩa là chưa bao giờ xóa
+    }
     },
     {
         _id: false,

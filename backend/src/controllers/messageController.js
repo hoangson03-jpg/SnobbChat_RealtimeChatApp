@@ -5,7 +5,7 @@ import { io } from '../socket/index.js';
 
 
 export const sendDirectMessage = async (req, res) => {
-    console.log("Body received:", req.body);
+    // console.log("Body received:", req.body);
     try {
         if (!req.body) {
             return res.status(400).json({ message: "Request body không được để trống" });

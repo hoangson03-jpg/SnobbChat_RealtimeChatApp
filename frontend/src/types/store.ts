@@ -73,7 +73,8 @@ export interface ChatState {
     deleteConversation: (conversationId: string) => Promise<void>;
     markAsSeen: () => Promise<void>;
      addConvo: (convo: Conversation, setActive?: boolean) => void; 
-    createConversation: (type: "group" | "direct", name: string, memberIds: string[]) => Promise<void>;
+    createConversation: (type: "group" | "direct", name: string, memberIds: string[]) => Promise<Conversation | null>;
+    clearMessagesOfConvo: (conversationId: string) => void;
 }
 
 export interface SocketState {

@@ -13,6 +13,7 @@ import swaggerUI from 'swagger-ui-express';
 import fs from 'fs';
 import {app,server} from './socket/index.js';
 import { v2 as cloudinary } from 'cloudinary';
+import Conversation from "./models/Conversation.js";
 
 dotenv.config();
 

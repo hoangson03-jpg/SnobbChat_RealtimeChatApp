@@ -45,13 +45,32 @@ const DirectMessageCard = ({convo} : {convo: Conversation}) => {
     const [openAlert, setOpenAlert] = useState(false);
 
     if(!user) return null;
+    const me = convo.participants.find((p) => p._id === user._id); // Tìm chính mình
 
     const otherUser = convo.participants.find((p) => p._id !== user._id);
     if(!otherUser) return null;
 
     const unreadCount = convo.unreadCounts[user._id];
-    const lastMessage = convo.lastMessage?.content ?? "";
 
+
+// 1. Lấy thời gian tin nhắn cuối (ưu tiên createdAt, fallback lastMessageAt)
+const msgTime = convo.lastMessage?.createdAt || convo.lastMessageAt;
+
+// 2. Logic so sánh: 
+const isMessageCleared = () => {
+    if (!msgTime || !me?.clearedAt) return false;
+
+    const t1 = new Date(msgTime).getTime();
+    const t2 = new Date(me.clearedAt).getTime();
+
+    // Nếu tin nhắn được tạo trước hoặc bằng lúc mình xóa -> Ẩn
+    return t1 <= t2;
+};
+
+// 3. Nếu là tin nhắn cũ đã bị xóa -> return null (Card biến mất khỏi Sidebar)
+if (isMessageCleared()) return null;
+
+const displayLastMessage = convo.lastMessage?.content ?? "";
     const handleSelectConversation = async (id: string) => {
       setActiveConversation(id);
       if(!messages[id]) {
@@ -88,14 +107,13 @@ const DirectMessageCard = ({convo} : {convo: Conversation}) => {
                     {unreadCount > 0 && <UnreadCountBadge unreadCount={unreadCount}/>}
                 </>
             }
-            subtitle={
-                <p className={cn(
-                    "text-sm truncate", 
-                    unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground"
-                )}>
-                    {lastMessage}
+             subtitle={
+            !isMessageCleared() && displayLastMessage ? (
+                <p className={cn("text-sm truncate", unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground")}>
+                    {displayLastMessage}
                 </p>
-            }
+            ) : null
+        }
             rightSection={
                 <DropdownMenu>
                     <DropdownMenuTrigger 

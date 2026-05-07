@@ -5,138 +5,187 @@ import {io} from '../socket/index.js'
 
 export const createConversation = async (req, res) => {
     try {
-        const {type, name, memberIds} = req.body; 
+        const { type, name, memberIds } = req.body;
         const userId = req.user?._id;
 
-        if(!type || (type === 'group' && !name) || !memberIds || !Array.isArray(memberIds) || memberIds.length === 0){
-            return res.status(400).json({message: "Tên nhóm và danh sách thành viên là bắt buộc"})
+        if (!type || (type === 'group' && !name) || !memberIds || !Array.isArray(memberIds) || memberIds.length === 0) {
+            return res.status(400).json({ message: "Tên nhóm và danh sách thành viên là bắt buộc" })
         }
 
         let conversation;
 
-        if(type === 'direct') {
+        if (type === 'direct') {
             const participantId = memberIds[0];
-
             conversation = await Conversation.findOne({
                 type: 'direct',
-                "participants.userId": {$all: [userId, participantId]},
-                
-            })
-            if(!conversation){
+                "participants.userId": { $all: [userId, participantId] },
+            });
+
+            if (!conversation) {
                 conversation = new Conversation({
                     type: 'direct',
-                    participants: [{userId}, {userId: participantId}],
+                    participants: [
+                        { userId, joinedAt: new Date(), clearedAt: null },
+                        { userId: participantId, joinedAt: new Date(), clearedAt: null }
+                    ],
                     lastMessageAt: new Date()
                 });
-                
                 await conversation.save();
             }
         }
 
-        if(type === 'group') {
+        if (type === 'group') {
             conversation = new Conversation({
                 type: 'group',
                 participants: [
-                    {userId},
-                    ...memberIds.map((id) => ({userId: id}))
+                    { userId, joinedAt: new Date(), clearedAt: null },
+                    ...memberIds.map((id) => ({ userId: id, joinedAt: new Date(), clearedAt: null }))
                 ],
-                group:{
+                group: {
                     name,
                     createdBy: userId
                 },
                 lastMessageAt: new Date()
             });
-
             await conversation.save();
         }
 
-        if(!conversation){
-            return res.status(400).json({message: 'Kiểu của cuộc hội thoại không hợp lệ!'});
+        if (!conversation) {
+            return res.status(400).json({ message: 'Kiểu của cuộc hội thoại không hợp lệ!' });
         }
 
+        // Populate đầy đủ như code gốc của bạn
         await conversation.populate([
-            {path: 'participants.userId', select: 'displayName avatarURL username'},
-            {
-                path: 'seenBy', select: 'displayName avatarURL username'
-            },
-            {
-                path: 'lastMessage.senderId', select: 'displayName avatarURL username'
-            }
+            { path: 'participants.userId', select: 'displayName avatarURL username bio' },
+            { path: 'seenBy', select: 'displayName avatarURL username' },
+            { path: 'lastMessage.senderId', select: 'displayName avatarURL username' }
         ]);
-        const formatted = {
-          ...conversation.toObject(),
-          participants: (conversation.participants || []).map((p) => ({
-            _id: p.userId?._id,
-            displayName: p.userId?.displayName,
-            avatarURL: p.userId?.avatarURL ?? null,
-            joinedAt: p.joinedAt
-          }))
+
+        // --- HÀM HELPER NỘI BỘ ĐỂ FORMAT DỮ LIỆU CHUẨN ---
+        // Hàm này giữ nguyên cấu trúc "formatted" của bạn nhưng thêm logic ẩn tin nhắn
+        const getFormattedForUser = (targetId) => {
+            const convoObj = conversation.toObject();
+            
+            // Tìm participant tương ứng với người nhận (targetId)
+            const pTarget = convoObj.participants.find(p => 
+                (p.userId._id || p.userId).toString() === targetId.toString()
+            );
+            
+            const clearedAtTime = pTarget?.clearedAt ? new Date(pTarget.clearedAt).getTime() : 0;
+            const msgTime = convoObj.lastMessage?.createdAt ? new Date(convoObj.lastMessage.createdAt).getTime() : 0;
+
+            // Logic ẩn tin nhắn nếu đã xóa lịch sử
+            let finalLastMessage = convoObj.lastMessage;
+            if (finalLastMessage && msgTime <= clearedAtTime) {
+                finalLastMessage = null;
+            }
+
+            return {
+                ...convoObj,
+                lastMessage: finalLastMessage,
+                participants: (convoObj.participants || []).map((p) => ({
+                    _id: p.userId?._id || p.userId,
+                    displayName: p.userId?.displayName,
+                    avatarURL: p.userId?.avatarURL ?? null,
+                    username: p.userId?.username,
+                    clearedAt: p.clearedAt, // Để frontend so sánh
+                    joinedAt: p.joinedAt
+                }))
+            };
         };
 
+        // --- GỬI SOCKET EVENT ---
         if (type === "direct") {
-    const allMembers = [userId, ...memberIds];
-
-    allMembers.forEach((id) => {
-      io.to(id.toString()).emit("new-conversation", {
-        conversation: formatted,
-      });
-    });
-  }
-
-        if(type === 'group') {
-          memberIds.forEach((userId) => {
-            io.to(userId).emit('new-group', formatted)
-          })
+            const allMembers = [userId, ...memberIds];
+            allMembers.forEach((id) => {
+                // Mỗi người nhận một bản "formatted" riêng theo clearedAt của họ
+                const dataForMember = getFormattedForUser(id);
+                io.to(id.toString()).emit("new-conversation", {
+                    conversation: dataForMember,
+                });
+            });
         }
-        return res.status(201).json({ formatted });
+
+        if (type === 'group') {
+            const allGroupMembers = [userId, ...memberIds];
+            allGroupMembers.forEach((id) => {
+                const dataForMember = getFormattedForUser(id);
+                io.to(id.toString()).emit('new-group', dataForMember);
+            });
+        }
+
+        // --- TRẢ VỀ CHO NGƯỜI GỌI API (CHÍNH LÀ userId) ---
+        const formattedForMe = getFormattedForUser(userId);
+
+        return res.status(201).json({ formatted: formattedForMe });
+
     } catch (error) {
-        console.error("Lỗi khi tạo conversation/ cuộc trò chuyện");
-        return res.status(500).json({ message: 'Lỗi hệ thống!'})
+        console.error("Lỗi khi tạo conversation:", error);
+        return res.status(500).json({ message: 'Lỗi hệ thống!' })
     }
 }
 
 export const getConversation = async (req, res) => {
   try {
     const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const conversation = await Conversation.find({
-      'participants.userId': userId
-    })
+    const conversations = await Conversation.find({ 'participants.userId': userId })
       .sort({ lastMessageAt: -1, updatedAt: -1 })
-      .populate({
-        path: 'participants.userId',
-        select: 'displayName avatarURL'
-      })
-      .populate({
-        path: 'seenBy',
-        select: 'displayName avatarURL'
-      });
+      .populate({ path: 'participants.userId', select: 'displayName avatarURL username bio' })
+      .populate({ path: 'seenBy', select: 'displayName avatarURL' });
 
-    const formatted = conversation.map((convo) => {
-      const participants = (convo.participants || [])
-        .filter(p => p.userId)
-        .map((p) => ({
+    const formatted = conversations.map((convo) => {
+      const convoObj = convo.toObject();
+      
+      // Tìm participant là chính mình
+      const me = convoObj.participants.find(p => p.userId._id.toString() === userId.toString());
+      
+      // Lấy mốc thời gian xóa (clearedAt). Nếu null thì mặc định là rất cũ
+      const clearedAtTime = me?.clearedAt ? new Date(me.clearedAt).getTime() : 0;
+
+      // Kiểm tra tin nhắn cuối cùng (lastMessage)
+      let effectiveLastMessage = convoObj.lastMessage;
+      
+      if (effectiveLastMessage && effectiveLastMessage.createdAt) {
+          const lastMsgTime = new Date(effectiveLastMessage.createdAt).getTime();
+
+          // Nếu tin nhắn cuối cùng cũ hơn hoặc bằng thời điểm mình xóa lịch sử
+          if (lastMsgTime <= clearedAtTime) {
+              effectiveLastMessage = null; // Ẩn nội dung tin nhắn này đi
+          }
+      }
+
+      // Map lại participants để trả về cấu trúc phẳng (flatten) cho Frontend dễ dùng
+      const participants = convoObj.participants.map((p) => ({
           _id: p.userId._id,
           displayName: p.userId.displayName,
           avatarURL: p.userId.avatarURL ?? null,
+          username: p.userId.username,
+          bio: p.userId.bio,
+          clearedAt: p.clearedAt, // Trả về để Frontend có thể debug/logic nếu cần
           joinedAt: p.joinedAt
-        }));
+      }));
 
       return {
-        ...convo.toObject(),
+        ...convoObj,
         participants,
-        unreadCounts: convo.unreadCounts || {},
+        lastMessage: effectiveLastMessage, // Trả về null nếu đã bị xóa
+        unreadCounts: convoObj.unreadCounts || {},
       };
+    })
+    // - Nếu là Direct Message (1-1) mà lastMessage là null (do vừa xóa xong) -> Ẩn luôn khỏi danh sách bên trái.
+    // - Nếu là Group Chat thì thường vẫn hiện tên nhóm ngay cả khi xóa lịch sử (tùy bạn chọn).
+    .filter(convo => {
+        if (convo.type === 'direct') {
+            return convo.lastMessage !== null;
+        }
+        return true; // Luôn hiện nhóm, hoặc dùng (convo.lastMessage !== null) nếu muốn ẩn cả nhóm
     });
 
     return res.status(200).json({ conversation: formatted });
-
   } catch (error) {
-    console.error("getConversation error:", error);
+    console.error("Lỗi getConversation:", error);
     return res.status(500).json({ message: 'Lỗi hệ thống!' });
   }
 };
@@ -145,11 +194,21 @@ export const getMessages = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { limit = 50, cursor } = req.query;
+    const userId = req.user._id;
 
-    const query = { conversationId };
+    // 1. Tìm clearedAt của user này
+    const convo = await Conversation.findById(conversationId).select("participants");
+    const me = convo?.participants.find(p => p.userId.toString() === userId.toString());
+    const clearedAt = me?.clearedAt || new Date(0);
+
+    // 2. Query tin nhắn phải lớn hơn clearedAt
+    const query = { 
+        conversationId,
+        createdAt: { $gt: clearedAt } 
+    };
 
     if (cursor) {
-      query.createdAt = { $lt: new Date(cursor) };
+      query.createdAt = { ...query.createdAt, $lt: new Date(cursor) };
     }
 
     let messages = await message
@@ -157,23 +216,17 @@ export const getMessages = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(Number(limit) + 1);
 
+    // ... (Phần logic nextCursor giữ nguyên)
     let nextCursor = null;
-
     if (messages.length > Number(limit)) {
       const nextMessage = messages[messages.length - 1];
       nextCursor = nextMessage.createdAt.toISOString();
       messages.pop();
     }
-
     messages = messages.reverse();
 
-    return res.status(200).json({
-      messages,
-      nextCursor,
-    });
-
+    return res.status(200).json({ messages, nextCursor });
   } catch (error) {
-    console.error("getMessages error:", error);
     return res.status(500).json({ message: "Lỗi hệ thống!" });
   }
 };
@@ -191,37 +244,39 @@ export const getUserConversationsForSocketIO = async (userId) => {
 };
 
 export const deleteConversation = async (req, res) => {
-    try {
+     try {
         const { conversationId } = req.params;
-        const userId = req.user._id.toString(); // Chuyển về string để so sánh
+        const userId = req.user._id;
 
-        const conversation = await Conversation.findById(conversationId);
-
-        if (!conversation) {
-            return res.status(404).json({ message: "Không tìm thấy cuộc hội thoại" });
-        }
-
-        // Dùng .some() để kiểm tra trong mảng Object
-        const isParticipant = conversation.participants.some(
-            (p) => p.userId.toString() === userId
+        // Cập nhật clearedAt của đúng User đang thực hiện lệnh xóa để xóa "mềm"
+        const updated = await Conversation.findOneAndUpdate(
+            { 
+                _id: conversationId, 
+                "participants.userId": userId 
+            },
+            { 
+                $set: { 
+                    "participants.$.clearedAt": new Date(),
+                    [`unreadCounts.${userId}`]: 0 // Reset tin nhắn chưa đọc
+                } 
+            },
+            { new: true }
         );
 
-        if (!isParticipant) {
-            return res.status(403).json({ message: "Bạn không có quyền xóa cuộc hội thoại này" });
+        if (!updated) {
+            return res.status(404).json({ message: "Không tìm thấy hội thoại" });
         }
 
-        await message.deleteMany({ conversationId: conversationId });
-
-        // Xóa hội thoại
-        await Conversation.findByIdAndDelete(conversationId);
-
-        return res.status(200).json({ 
-            message: "Đã xóa cuộc hội thoại thành công", 
-            conversationId 
+        io.to(userId.toString()).emit("conversation-cleared", { 
+          conversationId: conversationId 
         });
 
+        return res.status(200).json({ 
+            message: "Đã xóa lịch sử trò chuyện phía bạn", 
+            conversationId 
+        });
     } catch (error) {
-        console.error("Lỗi khi xóa hội thoại:", error);
+        console.error("Lỗi xóa hội thoại:", error);
         return res.status(500).json({ message: "Lỗi hệ thống!" });
     }
 };

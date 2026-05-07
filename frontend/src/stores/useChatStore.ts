@@ -61,7 +61,7 @@ export const useChatStore = create<ChatState>()(
 
                  const processed = fetched.map((m) => ({
                     ...m, 
-                    isOwn: m.senderId === user?._id
+                     isOwn: String(m.senderId) === String(user?._id)
                 }));
 
                 set((state) => {
@@ -124,36 +124,54 @@ export const useChatStore = create<ChatState>()(
                     }
                 },
                 addMessage: async (message) => {
-                    try {
-                        const {user} = useAuthStore.getState();
-
-                        message.isOwn = message.senderId === user?._id;
-
-                        const convoId = message.conversationId;
-
-                        set((state) => {
-                            const prev = state.messages[convoId]?.items ?? [];
-
-                            // 🔥 CHẶN DUPLICATE 100%
-                            const exists = prev.some((m) => m._id === message._id);
-
-                            if (exists) return {};
-
-                            return {
-                                messages: {
-                                    ...state.messages,
-                                    [convoId]: {
-                                        items: [...prev, message],
-                                        hasMore: state.messages[convoId]?.hasMore ?? true,
-                                        nextCursor: state.messages[convoId]?.nextCursor ?? null,
-                                    },
-                                },
-                            };
-                        });
-                    } catch (error) {
-                        console.error("Lỗi xảy ra khi add message:", error);
+                    // 1. Lấy user đang đăng nhập từ AuthStore
+                    const currentUser = useAuthStore.getState().user;
+                    
+                    if (!currentUser) {
+                        console.error("DEBUG: Không tìm thấy thông tin user trong AuthStore");
+                        return;
                     }
+
+                    // 2. Lấy ID người gửi từ tin nhắn (Socket có thể trả về string hoặc object)
+                    const senderId = typeof message.senderId === 'object' 
+                        ? (message.senderId as any)._id 
+                        : message.senderId;
+
+                    // 3. So sánh ID (Dùng String() và kiểm tra cả ._id lẫn .id cho chắc)
+                    const currentUserId = currentUser._id || (currentUser as any).id;
+                    const isOwn = String(senderId) === String(currentUserId);
+
+                    // --- Debug ---
+                    // console.log("--- DEBUG IS_OWN ---");
+                    // console.log("ID người gửi (từ tin nhắn):", senderId);
+                    // console.log("ID của bạn (từ AuthStore):", currentUserId);
+                    // console.log("Kết quả isOwn:", isOwn);
+
+                    set((state) => {
+                        const convoId = message.conversationId;
+                        const prev = state.messages[convoId]?.items ?? [];
+
+                        if (prev.some((m) => m._id === message._id)) return {};
+
+                        // 4. Gán isOwn chuẩn xác vào message trước khi đưa vào Store
+                        const processedMessage = { 
+                            ...message, 
+                            isOwn, 
+                            senderId: String(senderId) 
+                        };
+
+                        return {
+                            messages: {
+                                ...state.messages,
+                                [convoId]: {
+                                    ...state.messages[convoId],
+                                    items: [processedMessage, ...prev],
+                                },
+                            },
+                        };
+                    });
                 },
+                
                 updateConversation: async (conversation: Partial<Conversation>) => {
                     set((state) => ({
                         conversations: state.conversations.map((c) =>
@@ -169,36 +187,58 @@ export const useChatStore = create<ChatState>()(
                         ),
                     }));
                 },
+
+                
                 deleteConversation: async (conversationId: string) => {
-        try {
-            set({ loading: true });
-            
-            await chatService.deleteConversation(conversationId);
+                try {
+                    console.log("1. Bắt đầu gọi API xóa hội thoại:", conversationId);
+                    await chatService.deleteConversation(conversationId);
+                    console.log("2. API xóa thành công");
 
-            set((state) => {
-                // Xóa khỏi danh sách hội thoại bên Sidebar
-                const updatedConversations = state.conversations.filter(
-                    (c) => c._id !== conversationId
-                );
+                    set((state) => {
+                        const userId = useAuthStore.getState().user?._id;
+                        const now = new Date().toISOString();
 
-                // Nếu hội thoại đang mở chính là hội thoại bị xóa -> Đóng màn hình chat
-                const newActiveId = state.activeConversationId === conversationId 
-                    ? null 
-                    : state.activeConversationId;
+                        // Tìm hội thoại để kiểm tra trước khi update
+                        const oldConvo = state.conversations.find(c => c._id === conversationId);
+                        console.log("3. Dữ liệu cũ trong Store:", oldConvo?.participants);
 
-                return {
-                    conversations: updatedConversations,
-                    activeConversationId: newActiveId,
-                };
-            });
+                        const updatedConversations = state.conversations.map((c) => {
+                            if (c._id === conversationId) {
+                                return {
+                                    ...c,
+                                    participants: c.participants.map((p) => 
+                                        p._id === userId ? { ...p, clearedAt: now } : p
+                                    ),
+                                    lastMessage: null // Ép mất tin nhắn ngay
+                                };
+                            }
+                            return c;
+                        });
 
+                        console.log("4. Đã cập nhật clearedAt mới trong Store:", now);
+
+                        return {
+                            conversations: updatedConversations,
+                            messages: { ...state.messages, [conversationId]: { items: [], hasMore: false } },
+                            activeConversationId: state.activeConversationId === conversationId ? null : state.activeConversationId,
+                        };
+                    });
                 } catch (error) {
-                    console.error("Lỗi xóa hội thoại:", error);
+                    console.error("LỖI DEBUG STORE:", error);
                     throw error;
-                } finally {
-                    set({ loading: false });
                 }
             },
+
+            clearMessagesOfConvo: (id: string) => {
+                set((state) => {
+                    const newMessages = { ...state.messages };
+                    delete newMessages[id];
+                    return { messages: newMessages };
+                });
+            },
+
+            
                 markAsSeen: async () => {
                     try {
                         const { user } = useAuthStore.getState();
@@ -266,7 +306,7 @@ export const useChatStore = create<ChatState>()(
                 const conversation = await chatService.createConversation(type, name, memberIds);
                 if (!conversation) return null;
 
-                // 🔥 GỌI addConvo VÀ TRUYỀN true ĐỂ MÌNH ĐƯỢC REDIRECT ĐẾN CHAT ĐÓ
+                // GỌI addConvo VÀ TRUYỀN true ĐỂ MÌNH ĐƯỢC REDIRECT ĐẾN CHAT ĐÓ
                 get().addConvo(conversation, true);
 
                 useSocketStore.getState().socket?.emit("join-conversation", conversation._id);

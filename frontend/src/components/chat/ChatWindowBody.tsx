@@ -10,7 +10,7 @@ const ChatWindowBody = () => {
 
     const messages = allMessages[activeConversationId!]?.items ?? [];
 
-    const reversedMessages = [...messages].reverse();  
+    // const reversedMessages = [...messages].reverse();
 
     const hasMore = allMessages[activeConversationId!]?.hasMore ?? false;
     
@@ -105,42 +105,43 @@ const ChatWindowBody = () => {
             </div>
         );
     }
-  return (
-    <div className='p-4 bg-primary-foreground h-full flex flex-col overflow-hidden'>
-        <div
-        id='scrollableDiv'
-        onScroll={handleScrollSave}
-        ref={containerRef}
-        className='flex flex-col-reverse overflow-y-auto overflow-x-hidden beautiful-scrollbar'>
-            <div ref={messagesEndRef}></div>
-            <InfiniteScroll
-            dataLength={messages.length}
-            next={() => fetchMoreMessages()}
-            hasMore={hasMore}
-            scrollableTarget="scrollableDiv"
-            loader={<p>Đang tải...</p>}
-            inverse={true}
-            style={{
-                display: "flex",
-                flexDirection: "column-reverse",
-                overflow: "visible"
-            }} >
-            {reversedMessages.map((message, index) => (
-                <MessageItem
-                key={message._id ?? index}
-                message={message}
-                index={index}
-                messages={reversedMessages}
-                selectedConvo={selectedConvo}
-                lastMessageStatus={lastMessageStatus}
-                />
-            ))}
+ return (
+        <div className='p-4 bg-primary-foreground h-full flex flex-col-reverse overflow-hidden'>
+            <div
+                id='scrollableDiv'
+                onScroll={handleScrollSave}
+                ref={containerRef}
+                className='flex flex-col-reverse overflow-y-auto overflow-x-hidden beautiful-scrollbar'
+            >
+                {/* 3. Dùng Ref này để cuộn xuống đáy khi mới vào chat */}
+                <div ref={messagesEndRef}></div>
 
-            
-            </InfiniteScroll>
+                <InfiniteScroll
+                    dataLength={messages.length}
+                    next={() => fetchMoreMessages()}
+                    hasMore={hasMore}
+                    scrollableTarget="scrollableDiv"
+                    loader={<p className="text-center text-xs p-2">Đang tải tin nhắn cũ...</p>}
+                    inverse={true} // Báo cho thư viện biết ta đang cuộn ngược lên để lấy tin cũ
+                    style={{
+                        display: "flex", flexDirection: "column-reverse" // Giữ nguyên
+                    }}
+                >
+                    {/* 4. Map trực tiếp mảng messages (Mới nhất ở đầu) */}
+                    {messages.map((message, index) => (
+                        <MessageItem
+                            key={message._id}
+                            message={message}
+                            index={index}
+                            messages={messages} // Truyền mảng gốc
+                            selectedConvo={selectedConvo}
+                            lastMessageStatus={lastMessageStatus}
+                        />
+                    ))}
+                </InfiniteScroll>
+            </div>
         </div>
-    </div>
-  )
-}
+    );
+};
 
 export default ChatWindowBody
