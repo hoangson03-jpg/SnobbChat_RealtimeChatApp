@@ -104,6 +104,8 @@ export interface FriendState {
     handleFriendAcceptedSocket: (requestId: string, newFriend: any) => void;
     searchUsersList: (query: string, page?: number) => Promise<void>;
     resetSearch: () => void;
+    removeFriend: (friendId: string) => Promise<void>; 
+    handleRemoveFriendSocket: (friendId: string) => void;
 }
 
 export interface UserState {

@@ -24,6 +24,9 @@ const ChatWindowBody = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const key = `chat-scroll-${activeConversationId}`;
 
+    // Cuộc hội thoại sau khi kết bạn thành công
+    const isNewConnection = messages.length === 0;
+
     useEffect(() => {
         const lastMessage = selectedConvo?.lastMessage;
         if(!lastMessage) {
@@ -98,11 +101,15 @@ const ChatWindowBody = () => {
         return <ChatWelcomeScreen/>;
     }
 
-    if(!messages?.length){
+    if(isNewConnection){
         return (
-            <div className='flex h-full items-center justify-center text-muted-foreground'>
-                Chưa có tin nhắn nào trong cuộc hội thoại này
+            <div className='p-4 h-full flex flex-col'>
+        {isNewConnection && (
+            <div className="text-center text-sm text-muted-foreground p-4">
+                Hai bạn đã trở thành bạn bè. Hãy bắt đầu cuộc trò chuyện! 👋
             </div>
+        )}
+    </div>
         );
     }
  return (

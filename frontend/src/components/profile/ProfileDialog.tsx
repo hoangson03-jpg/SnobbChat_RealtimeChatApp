@@ -2,18 +2,22 @@ import type { Dispatch, SetStateAction } from "react";
 import { Dialog, DialogContent } from "../ui/dialog";
 import ProfileCard from "./ProfileCard";
 import { useAuthStore } from "@/stores/useAuthStore";
+import type { User } from "@/types/user";
 
 interface ProfileDialogProps {
     open: boolean;
     setOpen: Dispatch<SetStateAction<boolean>>;
+    user?: User | null; // Thêm để tùy chọn xem được profile của chính mình hoặc là xem của người khác
 }
 
-const ProfileDialog = ({open, setOpen} : ProfileDialogProps) => {
+const ProfileDialog = ({open, setOpen, user: propUser} : ProfileDialogProps) => {
     const {user} = useAuthStore();
+    const displayUser = propUser || user;
   return (
     <Dialog
     open={open}
     onOpenChange={setOpen}
+
     >
         <DialogContent className="w-full max-w-lg md:max-w-2xl rounded-md overflow-y-auto p-0 bg-transparent border-0 shadow-2xl">
             <div className="bg-gradient-glass">
@@ -26,7 +30,7 @@ const ProfileDialog = ({open, setOpen} : ProfileDialogProps) => {
                     </div>
                     {/* Profile card */}
                     <ProfileCard
-                    user={user}
+                    user={displayUser}
                     />
                 </div>
             </div>

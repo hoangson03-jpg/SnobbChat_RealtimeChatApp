@@ -17,16 +17,16 @@ const FriendRequestDialog = ({open, setOpen} : FriendRequestDialogProps) => {
     const [tab, setTab] = useState("received");
     const {getAllFriendRequests} = useFriendStore();
 
-    useEffect(() => {
-        const loadRequest = async () => {
-            try {
-                await getAllFriendRequests();
-            } catch (error) {
-                console.error("Lỗi xảy ra khi load requests", error);
-            }
-        }
-        loadRequest();
-    }, [])
+    // useEffect(() => {
+    //     const loadRequest = async () => {
+    //         try {
+    //             await getAllFriendRequests();
+    //         } catch (error) {
+    //             console.error("Lỗi xảy ra khi load requests", error);
+    //         }
+    //     }
+    //     loadRequest();
+    // }, [])
 
     return (
     <Dialog

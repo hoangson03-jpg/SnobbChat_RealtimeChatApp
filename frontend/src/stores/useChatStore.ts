@@ -286,20 +286,21 @@ export const useChatStore = create<ChatState>()(
                     }
                 },
                 addConvo: (convo, setActive = false) => {
-            set((state) => {
-                const exists = state.conversations.find((c) => c._id.toString() === convo._id.toString());
+                    console.log("🔥 Đang thêm conversation vào store:", convo);
+                        set((state) => {
+                        const exists = state.conversations.find((c) => c._id.toString() === convo._id.toString());
 
-                return {
-                    // Nếu đã tồn tại thì update nó với data mới nhất (để đồng bộ tên, avatar,...), chưa có thì thêm mới
-                    conversations: exists 
-                        ? state.conversations.map(c => c._id.toString() === convo._id.toString() ? { ...c, ...convo } : c)
-                        : [convo, ...state.conversations],
-                        
-                    // Chỉ set active khi hành động này do BẢN THÂN USER bấm tạo/chọn chat (setActive = true)
-                    activeConversationId: setActive ? convo._id : state.activeConversationId
-                }
-            })
-        },
+                        return {
+                            // Nếu đã tồn tại thì update nó với data mới nhất (để đồng bộ tên, avatar,...), chưa có thì thêm mới
+                            conversations: exists 
+                                ? state.conversations.map(c => c._id.toString() === convo._id.toString() ? { ...c, ...convo } : c)
+                                : [convo, ...state.conversations],
+                                
+                            // Chỉ set active khi hành động này do BẢN THÂN USER bấm tạo/chọn chat (setActive = true)
+                            activeConversationId: setActive ? convo._id : state.activeConversationId
+                        }
+                    })
+                },
                 createConversation: async (type, name, memberIds) => {
                      try {
                 set({ loading: true });

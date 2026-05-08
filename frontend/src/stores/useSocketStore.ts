@@ -78,6 +78,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
         // new conversation (direct chat)
         socket.on("new-conversation", ({ conversation }) => {
+            console.log("Dữ liệu nhận từ socket:", conversation);
             // Truyền false (hoặc ko truyền) để UI của người nhận không tự nhảy sang box chat này
             useChatStore.getState().addConvo(conversation, false);
         });

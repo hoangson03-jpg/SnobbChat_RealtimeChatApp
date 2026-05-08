@@ -60,5 +60,13 @@ export const friendService = {
     async getFriendList() {
         const res = await api.get("/friends");
         return res.data.friends;
+    },
+
+    async removeFriend(friendId: string){
+        try {
+            await api.delete(`/friends/${friendId}`, { withCredentials: true });
+        } catch (error) {
+            console.error("Lỗi khi unfriend", error);
+        }
     }
 }

@@ -27,12 +27,28 @@ import DirectMessageList from "../chat/DirectMessageList"
 import { useThemeStore } from "@/stores/useThemeStore"
 import { useAuthStore } from "@/stores/useAuthStore"
 import NewGroupChatModal from "../chat/NewGroupChatModal"
+import { useFriendStore } from "@/stores/useFriendStore"
+import { useChatStore } from "@/stores/useChatStore"
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const {isDark, toggleTheme} = useThemeStore();
   const {user} = useAuthStore();
+
+  // Lấy các hàm fetch từ store
+  const getAllFriendRequests = useFriendStore((state) => state.getAllFriendRequests);
+  const getFriends = useFriendStore((state) => state.getFriends);
+  const fetchConversations = useChatStore((state) => state.fetchConversations);
+
+  // 3. Khởi tạo dữ liệu 1 lần duy nhất
+  React.useEffect(() => {
+    if (user) {
+      getAllFriendRequests();
+      getFriends();
+      fetchConversations();
+    }
+  }, [user, getAllFriendRequests, getFriends, fetchConversations]);
 
   return (
     <Sidebar variant="inset" {...props}>

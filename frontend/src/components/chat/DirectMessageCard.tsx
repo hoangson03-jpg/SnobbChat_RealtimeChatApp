@@ -45,9 +45,10 @@ const DirectMessageCard = ({convo} : {convo: Conversation}) => {
     const [openAlert, setOpenAlert] = useState(false);
 
     if(!user) return null;
-    const me = convo.participants.find((p) => p._id === user._id); // Tìm chính mình
+    const me = convo.participants.find((p) => p._id === user._id); 
 
     const otherUser = convo.participants.find((p) => p._id !== user._id);
+    // console.log("Debug otherUser:", otherUser, "My ID:", user._id);
     if(!otherUser) return null;
 
     const unreadCount = convo.unreadCounts[user._id];

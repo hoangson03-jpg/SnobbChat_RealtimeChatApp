@@ -1,5 +1,6 @@
 import { friendService } from "@/services/friendService";
 import type { FriendState } from "@/types/store";
+import { toast } from "sonner";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -147,5 +148,34 @@ export const useFriendStore = create <FriendState>((set, get) => ({
         } finally {
             set({loading: false});
         }
-    }
+    },
+    
+        removeFriend: async (friendId: string) => {
+        try {
+            set({ loading: true });
+            
+            // 1. Gọi API (Giả sử bạn đã viết hàm removeFriend trong friendService)
+            await friendService.removeFriend(friendId);
+            
+            // 2. Cập nhật Store: Loại bỏ người bạn vừa xóa khỏi mảng
+            set((state) => ({
+                friends: state.friends.filter((f) => f._id !== friendId)
+            }));
+            
+            // 3. (Tùy chọn) Hiển thị thông báo thành công
+            toast.success("Đã hủy kết bạn thành công!");
+        } catch (error) {
+            console.error("Lỗi khi hủy kết bạn", error);
+            toast.error("Không thể hủy kết bạn. Vui lòng thử lại.");
+            throw error; // Ném lỗi để component bên ngoài biết nếu cần
+        } finally {
+            set({ loading: false });
+        }
+    },
+
+    handleRemoveFriendSocket: (friendId: string) => {
+        set((state) => ({
+            friends: state.friends.filter(f => f._id !== friendId)
+        }));
+    },
 }))

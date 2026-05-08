@@ -2,6 +2,7 @@ import Friend from '../models/Friend.js'
 import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
 import {io} from '../socket/index.js'
+import Conversation from '../models/Conversation.js';
 
 
 export const sendFriendRequest = async (req, res) => {
@@ -105,6 +106,38 @@ export const acceptFriendRequest = async (req, res) => {
             }
         });
 
+        // Tạo một cuộc hội thoại mới sau khi thêm bạn thành công
+
+        const newConvo = await Conversation.create({
+            type: 'direct',
+            participants: [
+                { userId: request.from, joinedAt: new Date() },
+                { userId: request.to, joinedAt: new Date() }
+            ],
+            lastMessageAt: new Date()
+        });
+        
+        await newConvo.populate('participants.userId', 'displayName avatarURL username');
+
+        const formatted = {
+            _id: newConvo._id,
+            type: 'direct',
+            lastMessage: null,
+            lastMessageAt: newConvo.lastMessageAt,
+            participants: newConvo.participants.map(p => ({
+                _id: p.userId._id, // Trích xuất ID
+                displayName: p.userId.displayName,
+                avatarURL: p.userId.avatarURL,
+                username: p.userId.username,
+                joinedAt: p.joinedAt
+            })),
+            unreadCounts: { [request.from]: 0, [request.to]: 0 }
+        };
+
+        // Emit bản đã format
+        io.to(request.from.toString()).emit("new-conversation", { conversation: formatted });
+        io.to(request.to.toString()).emit("new-conversation", { conversation: formatted });
+
         // Trả API về cho người bấm Accept
         return res.status(200).json({
             message: "Chấp nhận lời mời kết bạn thành công!",
@@ -197,5 +230,25 @@ export const getFriendsRequest = async (req, res) => {
     } catch (error) {
         console.error('Lỗi khi lấy danh sách lởi mời kết bạn', error);
         return res.status(500).json({message: 'Lỗi hệ thống'});
+    }
+}
+
+export const removeFriend = async (req, res) => {
+    try {
+        const { friendId } = req.params; // ID của người bạn cần xóa
+        const userId = req.user._id;
+
+        // 1. Xóa trong Collection Friend
+        await Friend.deleteOne({
+            $or: [
+                { userA: userId, userB: friendId },
+                { userA: friendId, userB: userId }
+            ]
+        });
+        io.to(friendId.toString()).emit("friend-removed", { friendId: userId });
+
+        return res.status(200).json({ message: "Đã hủy kết bạn" });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi hệ thống" });
     }
 }
