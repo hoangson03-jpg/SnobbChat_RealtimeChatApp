@@ -51,7 +51,12 @@ export interface Message {
   senderId: string;
   content: string | null;
   imgUrl?: string | null;
-  updatedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
+
+  tempId?: string;
+
   isOwn?: boolean;
+
+  status?: "pending" | "sent" | "error";
 }

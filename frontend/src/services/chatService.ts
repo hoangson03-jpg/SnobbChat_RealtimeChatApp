@@ -18,22 +18,24 @@ export const chatService = {
     
     return {messages: res.data.messages, cursor: res.data.nextCursor}
     },
-    async sendDirectMessage(recipientId: string, content: string = "", imgURL?: string, conversationId?: string) {
-        const res = await api.post("/messages/direct",{
-            recipientId,
-            content,
-            imgURL,
-            conversationId
-        });
-        return res.data.messages
+    sendDirectMessage: async (recipientId: string, content: string, imgURL?: string, conversationId?: string, tempId?: string) => {
+    const response = await api.post('/messages/direct', {
+        recipientId,
+        content,
+        imgURL,
+        conversationId,
+        tempId // Thêm tempId vào object body
+    });
+    return response.data;
     },
-    async sendGroupMessage(conversationId: string, content:string = "", imgURL?: string){
-        const res = await api.post("/messages/group",{
+    sendGroupMessage: async (conversationId: string, content: string, imgURL?: string, tempId?: string) => {
+        const response = await api.post('/messages/group', {
             conversationId,
             content,
-            imgURL
+            imgURL,
+            tempId // BẮT BUỘC TRUYỀN XUỐNG ĐÂY
         });
-        return res.data.messages;
+        return response.data;
     },
     async markAsSeen(conversationId: string) {
         const res = await api.patch(`/conversations/${conversationId}/seen`);

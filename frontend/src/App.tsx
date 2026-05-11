@@ -8,6 +8,7 @@ import { useThemeStore } from './stores/useThemeStore';
 import { useEffect } from 'react';
 import { useAuthStore } from './stores/useAuthStore';
 import { useSocketStore } from './stores/useSocketStore';
+import { useNetworkSync } from './hooks/useNetworkSync';
 
 
 function App() {
@@ -27,7 +28,7 @@ function App() {
 
     return () => disconnectSocket(); 
   }, [accessToken]) 
-
+  useNetworkSync();
   return <>
   <Toaster richColors/>
   <BrowserRouter>

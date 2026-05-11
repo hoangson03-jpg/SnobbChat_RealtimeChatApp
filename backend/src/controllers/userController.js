@@ -1,4 +1,6 @@
 import { uploadImageFromBuffer } from "../middlewares/uploadMiddleware.js";
+import { UserCache } from "../services/redisServices.js";
+import redisClient from "../config/redis.js";
 import User from "../models/User.js";
 
 export const authMe = async (req, res) => {
@@ -24,8 +26,21 @@ export const searchUserByUsername = async (req, res) => {
             return res.status(400).json({message: "Cần cung cấp username trong query"})
         }
 
+        const cacheKey = `user:username:${username}`;
+
+        // Kiểm tra cache trước khi truy vấn DB, nếu có thì trả về ngay, không cần đợi DB
+        const cachedUser = await redisClient.get(cacheKey);
+
+        if (cachedUser) {
+            return res.status(200).json({ user: JSON.parse(cachedUser) }); // Trả về ngay lập tức
+        }
+
         const user = await User.findOne({username}).select("_id displayName username avatarURL");
 
+        if(user) {
+            // set cache với TTL 1 giờ
+            await redisClient.setEx(cacheKey, 3600, JSON.stringify(user));
+        }
         return res.status(200).json({user});
     } catch (error) {
         console.error("Lỗi xảy ra khi searchUserByUsername")
@@ -76,18 +91,17 @@ export const uploadAvatar = async (req, res) => {
 
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            {
-                avatarURL: result.secure_url,
-                avatarID: result.public_id
-            },
-            {
-                new: true,
-            }
-        ).select("avatarURL");
+            { avatarURL: result.secure_url, avatarID: result.public_id },
+            { new: true }
+        ).select("avatarURL username");
 
         if(!updatedUser.avatarURL){
-            return res.status(400).json({message: "avatar trả về null"});
+            return res.status(400).json({message: "Avatar trả về null"});
         }
+
+        // Khi update thành công, phải xóa cache cũ đi 
+        // để lần search sau nó lấy data mới có avatar mới
+        await UserCache.invalidate(updatedUser.username);
 
         return res.status(200).json({avatarURL: updatedUser.avatarURL});
     } catch (error) {

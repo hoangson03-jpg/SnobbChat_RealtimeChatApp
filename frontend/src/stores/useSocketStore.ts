@@ -33,47 +33,36 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
         // new message
         socket.on("new-message", ({ message, conversation, unreadCounts }) => {
-    const chatStore = useChatStore.getState();
-    const convoId = conversation._id;
+        const chatStore = useChatStore.getState();
+        const convoId = conversation._id;
 
-    // 1. Kiểm tra hội thoại đã có trong danh sách bên trái chưa
-    const exists = chatStore.conversations.some((c) => c._id === convoId);
+        const current =
+            chatStore.messages[convoId]?.items || [];
 
-    if (!exists) {
-        // Nếu chưa có (có thể do mới hoàn toàn hoặc do vừa bị ẩn đi vì xóa lịch sử)
-        // Khi addConvo, mảng tin nhắn của ID này trong Store phải được reset về rỗng
-        chatStore.addConvo({
-            ...conversation,
+        // 🚨 CHECK DUPLICATE
+        const exists = current.some(
+            (m) =>
+                m._id === message._id ||
+                m.tempId === message._id
+        );
+
+        if (exists) return;
+
+        // 1. add message an toàn
+        chatStore.addMessage(message);
+
+        // 2. update sidebar
+        chatStore.updateConversation({
+            _id: convoId,
+            lastMessage: message,
+            lastMessageAt: message.createdAt,
             unreadCounts
         });
-        
-        // QUAN TRỌNG: Xóa sạch tin nhắn cũ của ID này trong store nếu có 
-        // để đảm bảo tin nhắn mới là duy nhất
-        chatStore.clearMessagesOfConvo(convoId); 
-    }
 
-    // 2. Thêm tin nhắn mới vào Store
-    chatStore.addMessage(message);
-
-    // 3. Cập nhật Sidebar (lastMessage, thời gian, số tin chưa đọc)
-    chatStore.updateConversation({
-        _id: convoId,
-        lastMessage: message, // Dùng trực tiếp object message vừa nhận
-        lastMessageAt: message.createdAt,
-        unreadCounts
-    });
-
-    // 4. Nếu đang mở chính hội thoại này thì markAsSeen
-    if (chatStore.activeConversationId === convoId) {
-        chatStore.markAsSeen();
-    }
-    });
-        
-        // read message
-        socket.on("read-message", ({ conversation }) => {
-        useChatStore.getState().updateConversation({
-            ...conversation, // nếu backend đã populate
-        });
+        // 3. mark seen
+        if (chatStore.activeConversationId === convoId) {
+            chatStore.markAsSeen();
+        }
     });
 
         // new conversation (direct chat)
@@ -108,7 +97,23 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             // Gọi hàm dọn dẹp trong ChatStore
             useChatStore.getState().clearMessagesOfConvo(conversationId);
         });
-        
+
+        // Backend báo đã lưu thành công tin nhắn kẹt từ Redis vào MongoDB
+        socket.on("message-synced-success", ({ tempId, realMessage }) => {
+    const chatStore = useChatStore.getState();
+    const convoId = realMessage.conversationId;
+
+    chatStore.replaceTempMessage(convoId, tempId, realMessage);
+
+    chatStore.updateConversation({
+        _id: convoId,
+        lastMessage: realMessage,
+        lastMessageAt: realMessage.createdAt
+    });
+
+    // 🚨 mark message đã sync để socket không add lại
+    chatStore.markMessageAsSynced(realMessage._id);
+});
     },
     disconnectSocket: () => {
         const socket = get().socket;

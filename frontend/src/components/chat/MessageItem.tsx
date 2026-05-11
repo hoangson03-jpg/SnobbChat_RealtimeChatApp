@@ -5,6 +5,7 @@ import UserAvatar from './UserAvatar';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { replaceTextWithEmoji } from '@/lib/emojiMap';
+import { Clock } from '@phosphor-icons/react/dist/icons/Clock';
 
 
 interface MessageItemProps {
@@ -97,9 +98,18 @@ const isBigEmoji = checkIsBigEmoji(parsedContent);
                 
                 {/* Status: Seen / Delivered (Chỉ hiện cho tin nhắn cuối cùng của mình) */}
                 {isOwn && index === 0 && (
-                    <span className="text-[10px] text-muted-foreground mt-1 lowercase">
-                        {lastMessageStatus}
-                    </span>
+                    <div className="flex items-center gap-1 mt-1 justify-end">
+                        {/* NẾU LÀ TIN NHẮN TẠM THỜI (PENDING) */}
+                        {message.status === 'pending' ? (
+                            <span className="flex items-center text-[10px] text-muted-foreground">
+                                <Clock className="w-3 h-3 mr-1 animate-pulse" /> Đang gửi...
+                            </span>
+                        ) : (
+                            <span className="text-[10px] text-muted-foreground lowercase">
+                                {lastMessageStatus}
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

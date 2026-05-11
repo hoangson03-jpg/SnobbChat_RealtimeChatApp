@@ -51,6 +51,7 @@ export interface ChatState {
     convoLoading: boolean;
     messagesLoading: boolean;
     loading: boolean;
+    syncedMessageIds: string[];
     reset: () => void;
 
     setActiveConversation: (id: string | null) => void;
@@ -59,12 +60,14 @@ export interface ChatState {
     sendDirectMessage: (
         recipientId: string,
         content: string,
-        imgURL?: string
+        imgURL?: string,
+        providedTempId?: string
     ) => Promise<void>;
     sendGroupMessage: (
         conversationId: string,
         content: string,
-        imgURL?: string
+        imgURL?: string,
+        providedTempId?: string
     ) => Promise<void>;
     // add message
     addMessage: (message: Message) => Promise<void>;
@@ -75,6 +78,17 @@ export interface ChatState {
      addConvo: (convo: Conversation, setActive?: boolean) => void; 
     createConversation: (type: "group" | "direct", name: string, memberIds: string[]) => Promise<Conversation | null>;
     clearMessagesOfConvo: (conversationId: string) => void;
+    offlineQueue: Array<{
+        tempId: string;
+        type: "direct" | "group";
+        recipientId?: string;
+        conversationId?: string;
+        content: string;
+    }>;
+    replaceTempMessage: (conversationId: string, tempId: string, realMessage: Message) => void;
+    markMessageAsSynced: (realId: string) => void;
+    addMessageToQueue: (payload: any) => void;
+    retryOfflineMessages: () => Promise<void>;
 }
 
 export interface SocketState {

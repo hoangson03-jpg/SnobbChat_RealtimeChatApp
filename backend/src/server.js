@@ -14,6 +14,7 @@ import fs from 'fs';
 import {app,server} from './socket/index.js';
 import { v2 as cloudinary } from 'cloudinary';
 import Conversation from "./models/Conversation.js";
+import { startSyncWorker } from "./workers/syncWorker.js";
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ const startServer = () => {
             connectDB()
                 .then(() => console.log("[OK] Kết nối MongoDB thành công!"))
                 .catch(err => console.error("[ERROR] Lỗi kết nối MongoDB:", err.message));
+                startSyncWorker();
         });
 
         // Bắt lỗi nếu cổng 3000 bị chiếm dụng bởi phần mềm khác

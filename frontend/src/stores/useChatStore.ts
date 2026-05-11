@@ -3,7 +3,7 @@ import type { ChatState } from "@/types/store";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useAuthStore } from "./useAuthStore";
-import type { Conversation } from "@/types/chat";
+import type { Conversation, Message } from "@/types/chat";
 import { useSocketStore } from "./useSocketStore";
 
 export const useChatStore = create<ChatState>()(
@@ -15,6 +15,8 @@ export const useChatStore = create<ChatState>()(
             convoLoading: false,
             messagesLoading: false,
             loading: false,
+            offlineQueue: [],
+            syncedMessageIds: [],
 
             setActiveConversation: (id) => set({activeConversationId: id}),
             reset: () => {
@@ -93,34 +95,173 @@ export const useChatStore = create<ChatState>()(
                         set({messagesLoading: false});
                     }
                 },
-                sendDirectMessage: async (recipientId, content, imgURL) => {
+                sendDirectMessage: async (recipientId, content, imgURL, providedTempId?: string) => {
+                    const { activeConversationId, addMessage, addMessageToQueue, replaceTempMessage } = get();
+                    const currentUser = useAuthStore.getState().user;
+
+                    const tempId = providedTempId || `temp_${Date.now()}`;
+                    const tempMessage: Message = {
+                        _id: tempId,
+                        tempId: tempId,
+                        conversationId: activeConversationId || "temp_convo",
+                        senderId: currentUser?._id || "",
+                        content,
+                        createdAt: new Date().toISOString(),
+                        isOwn: true,
+                        status: 'pending' // Hiển thị đồng hồ cát ở UI
+                    };
+
+                    if (!providedTempId) {
+                        addMessage(tempMessage); // Hiện ngay lên UI
+                    }
+
                     try {
-                        const {activeConversationId} = get();
-                        await chatService.sendDirectMessage(recipientId,
+                        const res = await chatService.sendDirectMessage(
+                            recipientId,
                             content,
                             imgURL,
-                            activeConversationId || undefined
+                            activeConversationId || undefined,
+                            tempId // THÊM DÒNG NÀY ĐỂ TRUYỀN XUỐNG SERVICE
                         );
 
+
+                        // Nếu rớt mạng, API trả về undefined -> Ép văng lỗi để lọt xuống catch
+                        if (!res) {
+                            throw new Error("Không nhận được phản hồi từ Server (Có thể do rớt mạng)");
+                        }
+
+                        // Nếu Backend trả về dạng queued (mất mạng DB, nhưng backend vẫn sống)
+                        if (res.status === 'queued') {
+                            console.warn("Tin nhắn đã đưa vào Queue của Redis backend");
+                            return; // Cứ để status là pending
+                        }
+
+                        // Nếu gửi thành công, thay thế tin nhắn tạm bằng tin nhắn thật từ backend
+                        if (activeConversationId) {
+                            replaceTempMessage(activeConversationId, tempId, res.message);
+                        }
+
+                        // Sau khi gửi thành công, cập nhật seenBy
                         set((state) => ({
-                            conversations: state.conversations.map((c) => c._id === activeConversationId ? {...c, seenBy: []} : c)
-                        }))
-                    } catch (error) {
-                        console.error("Lỗi xảy ra khi create direct message ", error);
+                            conversations: state.conversations.map((c) => 
+                                c._id === activeConversationId ? {...c, seenBy:[]} : c
+                            )
+                        }));
+                    } catch (error: any) {
+                        console.error("Lỗi xảy ra khi create direct message (Mất mạng)", error);
+                        
+                        // NẾU MẤT MẠNG HOÀN TOÀN: Đẩy vào Queue của Zustand để gửi lại sau
+                        addMessageToQueue({
+                            tempId,
+                            type: 'direct',
+                            recipientId,
+                            content
+                        });
                     }
                 },
-                sendGroupMessage: async (conversationId, content, imgURL) => {
+                sendGroupMessage: async (
+                    conversationId: string,
+                    content: string,
+                    imgURL?: string,
+                    providedTempId?: string
+                ) => {
+                    const { addMessage, addMessageToQueue, replaceTempMessage } = get();
+                    // Giả sử useAuthStore.getState().user trả về object User hiện tại
+                    const currentUser = useAuthStore.getState().user;
+
+                    // 1. TẠO TIN NHẮN TẠM THỜI (Optimistic UI)
+                    const tempId = providedTempId || `temp_group_${Date.now()}`; 
+                    const tempMessage: Message = {
+                        _id: tempId,
+                        conversationId: conversationId,
+                        senderId: currentUser?._id || "",
+                        content: content,
+                        imgUrl: imgURL || null,
+                        createdAt: new Date().toISOString(),
+                        isOwn: true,
+                        tempId: tempId,
+                        status: 'pending' // Hiển thị icon đang gửi ở UI
+                    };
+
+                    // Nếu là lần gửi đầu tiên (chưa có providedTempId), hiển thị ngay lên màn hình
+                    if (!providedTempId) {
+                        await addMessage(tempMessage); 
+                    }
+
                     try {
-                        await chatService.sendGroupMessage(
-                            conversationId,
-                            content,
+                        // Gọi API lên Backend
+                        const res = await chatService.sendGroupMessage(
+                            conversationId, 
+                            content, 
                             imgURL,
-                        )
+                            tempId // THÊM DÒNG NÀY 
+                        );
+                        
+                        // Trải nghiệm mượt: Nếu Backend bị đứt DB và đưa vào Redis Queue
+                        if (res.status === 'queued') {
+                            console.warn("Backend đang lỗi DB, tin nhắn nhóm đã đưa vào Queue của Redis");
+                            return; 
+                        }
+
+                        // Thành công: Thay thế tin nhắn ảo bằng tin nhắn thật từ DB trả về
+                        replaceTempMessage(conversationId, tempId, res.message);
+
+                        // Cập nhật Sidebar / Conversations list
                         set((state) => ({
-                            conversations: state.conversations.map((c) => c._id === get().activeConversationId ? {...c, seenBy: []} : c)
-                        }))
+                            conversations: state.conversations.map((c) => 
+                                c._id === conversationId 
+                                    ? { 
+                                        ...c, 
+                                        // FIX TYPE: seenBy cần mảng SeenUser[] (chỉ yêu cầu _id là bắt buộc)
+                                        seenBy: currentUser ?[{ _id: currentUser._id }] :[], 
+                                        
+                                        // FIX TYPE: lastMessage phải match với interface LastMessage
+                                        lastMessage: {
+                                            _id: res.message._id,
+                                            content: res.message.content || (res.message.imgUrl ? "Đã gửi một ảnh" : ""),
+                                            createdAt: res.message.createdAt,
+                                            sender: {
+                                                _id: currentUser?._id || "",
+                                                // Typecast sang any hoặc dùng property chuẩn của model User
+                                                displayName: (currentUser as any)?.displayName || (currentUser as any)?.firstName || "Bạn",
+                                                avatarUrl: (currentUser as any)?.avatarUrl || null
+                                            }
+                                        },
+                                        // Cập nhật thời gian để đẩy cuộc hội thoại lên đầu danh sách
+                                        updatedAt: new Date().toISOString() 
+                                    } 
+                                    : c
+                            )
+                        }));
+
                     } catch (error) {
-                        console.error("Lỗi xảy ra khi create group message ", error);
+                        console.error("Lỗi khi gửi tin nhắn nhóm:", error);
+
+                        // FIX TYPE: Xử lý Record<string, { items: Message[] }> đúng cách trong khối catch
+                        set((state) => {
+                            const convoMessages = state.messages[conversationId];
+                            if (!convoMessages) return state; // Nếu không tìm thấy, giữ nguyên state
+
+                            return {
+                                messages: {
+                                    ...state.messages,
+                                    [conversationId]: {
+                                        ...convoMessages,
+                                        items: convoMessages.items.map((msg) =>
+                                            msg._id === tempId ? { ...msg, status: 'error' } : msg
+                                        )
+                                    }
+                                }
+                            };
+                        });
+
+                        // Đưa tin nhắn vào hàng đợi offline ở Client
+                        addMessageToQueue({
+                            tempId: tempId,
+                            type: "group",
+                            conversationId: conversationId,
+                            content: content
+                        });
                     }
                 },
                 addMessage: async (message) => {
@@ -320,7 +461,85 @@ export const useChatStore = create<ChatState>()(
                     } finally {
                         set({ loading: false });
                     }
-                    }
+                    },
+                    replaceTempMessage: (
+                        conversationId: string,
+                        tempId: string,
+                        realMessage: Message
+                        ) => {
+                        set((state) => {
+                            const convo = state.messages[conversationId];
+
+                            if (!convo) return state;
+
+                            const prevItems = convo.items || [];
+
+                            // 1. Remove temp message + tránh giữ bản cũ
+                            const withoutTemp = prevItems.filter(
+                            (msg) => msg._id !== tempId && msg.tempId !== tempId
+                            );
+
+                            // 2. Check duplicate real message
+                            const exists = withoutTemp.some(
+                            (msg) => msg._id === realMessage._id
+                            );
+
+                            // 3. Normalize message (fix type + trạng thái)
+                            const normalized: Message = {
+                            ...realMessage,
+                            isOwn: true,
+                            status: "sent",
+                            };
+
+                            // 4. Build final list
+                            const items: Message[] = exists
+                            ? withoutTemp
+                            : [normalized, ...withoutTemp];
+
+                            return {
+                            messages: {
+                                ...state.messages,
+                                [conversationId]: {
+                                ...convo,
+                                items,
+                                },
+                            },
+                            };
+                        });
+                    },
+                    markMessageAsSynced: (messageId: string) => {
+                        set((state) => {
+                            const exists = state.syncedMessageIds.includes(messageId);
+
+                            if (exists) return state;
+
+                            return {
+                            syncedMessageIds: [...state.syncedMessageIds, messageId],
+                            };
+                        });
+                        },
+                    addMessageToQueue: (payload) => {
+                        set((state) => ({
+                            offlineQueue: [...(state.offlineQueue || []), payload]
+                        }));
+                    },
+                    retryOfflineMessages: async () => {
+                        const { offlineQueue } = get();
+                        if (!offlineQueue || offlineQueue.length === 0) return;
+
+                        console.log("🔄 Đang thử gửi lại các tin nhắn offline...", offlineQueue);
+                        
+                        // Xóa queue hiện tại để tránh gửi lặp lại
+                        set({ offlineQueue:[] });
+
+                        for (const msg of offlineQueue) {
+                            if (msg.type === 'direct' && msg.recipientId) {
+                                await get().sendDirectMessage(msg.recipientId, msg.content, undefined, msg.tempId);
+                            } else if (msg.type === 'group' && msg.conversationId) {
+                                await get().sendGroupMessage(msg.conversationId, msg.content, undefined, msg.tempId);
+                            }
+                        }
+                    },
         }),
     {
         name: "chat-storage",
