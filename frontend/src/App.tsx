@@ -1,4 +1,4 @@
-import {BrowserRouter, Route, Routes} from 'react-router';
+import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import SignInPage from './pages/SignInPage';
 import SignUpPage from './pages/SignUpPage';
 import ChatAppPage from './pages/ChatAppPage';
@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from './stores/useAuthStore';
 import { useSocketStore } from './stores/useSocketStore';
 import { useNetworkSync } from './hooks/useNetworkSync';
+import { VerifyOTPForm } from './components/auth/verify-otp-form';
 
 
 function App() {
@@ -44,6 +45,8 @@ function App() {
     element={<SignUpPage/>}>
     </Route>
 
+    {/* OTP */}
+    <Route path='/verify-otp' element={<VerifyOTPForm />} />
     {/** protected route */}
     <Route element = {<ProtectedRoute/>}>
       <Route

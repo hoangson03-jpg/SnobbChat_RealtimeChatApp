@@ -36,6 +36,35 @@ export const useAuthStore = create<AuthState>()(
             set({ loading: false });
         }
     },
+    // 2 step verification OTP/ email
+    verifyOTP: async (email, otp) => {
+        try {
+            set({ loading: true });
+            const res = await authService.verifyOTP(email, otp);
+            toast.success(res.message || 'Xác thực email thành công!');
+            return true;
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Mã OTP không hợp lệ');
+            return false;
+        } finally {
+            set({ loading: false });
+        }
+    },
+
+    // Gửi lại mã OTP
+    resendOTP: async (email) => {
+        try {
+            set({ loading: true });
+            const res = await authService.resendOTP(email);
+            toast.success(res.message || 'Mã OTP mới đã được gửi!');
+            return true;
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Lỗi gửi lại mã');
+            return false;
+        } finally {
+            set({ loading: false });
+        }
+    },
 
     signIn: async (username, password) => {
         try {

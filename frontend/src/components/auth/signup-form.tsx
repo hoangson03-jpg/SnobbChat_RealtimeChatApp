@@ -38,7 +38,8 @@ export function SignupForm({
     // gọi api từ backend  
     await signUp(username, password, email, firstname, lastname);
 
-    navigate("/signin");
+    // xác thức OTP
+    navigate("/verify-otp", { state: { email: email } });
   }
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>

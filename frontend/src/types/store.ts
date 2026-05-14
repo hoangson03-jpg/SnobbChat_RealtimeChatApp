@@ -20,6 +20,9 @@ export interface AuthState {
         lastName: string
     ) => Promise<void>;
 
+    verifyOTP: (email: string, otp: string) => Promise<boolean>;
+    resendOTP: (email: string) => Promise<boolean>;
+
     signIn: (
         username: string,
         password: string

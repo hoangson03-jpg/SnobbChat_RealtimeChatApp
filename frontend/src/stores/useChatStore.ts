@@ -517,7 +517,7 @@ export const useChatStore = create<ChatState>()(
                             syncedMessageIds: [...state.syncedMessageIds, messageId],
                             };
                         });
-                        },
+                    },
                     addMessageToQueue: (payload) => {
                         set((state) => ({
                             offlineQueue: [...(state.offlineQueue || []), payload]
