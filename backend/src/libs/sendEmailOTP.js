@@ -1,59 +1,57 @@
-import { TransactionalEmailsApi, SendSmtpEmail, TransactionalEmailsApiApiKeys } from '@getbrevo/brevo';
 import dotenv from "dotenv";
 dotenv.config();
 
 export const sendOTP = async (email, otp) => {
     try {
         if (!process.env.BREVO_API_KEY) {
-            console.error("LỖI: BREVO_API_KEY chưa được cấu hình trong Environment.");
+            console.error("LỖI: BREVO_API_KEY chưa được cấu hình.");
             return;
         }
 
-        const apiInstance = new TransactionalEmailsApi(); // API
+        console.log(`Đang gửi mail tới: ${email} qua Brevo API...`);
 
-        apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY); // API config
-
-        const sendSmtpEmail = new SendSmtpEmail(); // email data
-
-        sendSmtpEmail.subject = "Mã xác thực OTP - SnobbChat";
-        sendSmtpEmail.htmlContent = `
-            <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                    <div style="max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
-                        <h2 style="color: #3b82f6;">Xác thực tài khoản của bạn</h2>
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: {
+                    name: "SnobbChat Support",
+                    email: process.env.EMAIL_USER // Email bạn dùng đăng ký Brevo
+                },
+                to: [
+                    {
+                        email: email
+                    }
+                ],
+                subject: "Mã OTP xác thực - SnobbChat",
+                htmlContent: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+                        <h2 style="color: #3b82f6;">Xác thực tài khoản</h2>
                         <p>Chào bạn,</p>
-                        <p>Mã OTP để hoàn tất đăng ký SnobbChat là:</p>
-                        <p style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1e293b; text-align: center; background: #f1f5f9; padding: 10px; border-radius: 8px;">
+                        <p>Mã OTP của bạn là:</p>
+                        <div style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 24px; font-weight: bold; color: #333;">
                             ${otp}
-                        </p>
-                        <p>Mã này có hiệu lực trong <b>10 phút</b>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
-                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                        <p style="font-size: 12px; color: #64748b;">Đây là email tự động, vui lòng không phản hồi.</p>
+                        </div>
+                        <p>Mã này có hiệu lực trong 10 phút. Đừng chia sẻ với bất kỳ ai.</p>
+                        <p>Trân trọng,<br>Đội ngũ SnobbChat</p>
                     </div>
-                </body>
-            </html>
-        `;
+                `
+            })
+        });
 
-        sendSmtpEmail.sender = { 
-            name: "SnobbChat Support", 
-            email: process.env.EMAIL_USER 
-        };
+        const result = await response.json();
 
-        sendSmtpEmail.to = [{ email: email }];
-
-        console.log(`Đang gửi mail qua Brevo tới: ${email}...`);
-
-        const result = await apiInstance.sendTransacEmail(sendSmtpEmail); // call brevo API
-        
-        console.log("Gửi thành công! Message ID:", result.body.messageId);
+        if (response.ok) {
+            console.log("GỬI MAIL THÀNH CÔNG! Message ID:", result.messageId);
+        } else {
+            console.error("LỖI TỪ BREVO API:", result);
+        }
 
     } catch (error) {
-        console.error("LỖI GỬI MAIL BREVO:");
-        
-        if (error.response && error.response.body) {
-            console.error("Chi tiết lỗi API:", JSON.stringify(error.response.body, null, 2));
-        } else {
-            console.error("Thông báo lỗi:", error.message);
-        }
+        console.error("LỖI HỆ THỐNG KHI GỬI MAIL:", error.message);
     }
 };
