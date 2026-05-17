@@ -73,10 +73,11 @@ export const signUp = async (req, res) => {
         }
 
         // 4. Gửi Email OTP
-        await sendOTP(email, otp);
+        sendOTP(email, otp).catch(err => console.error("Lỗi gửi mail ngầm:", err));
 
+        // Trả về luôn để Frontend không bị đơ chờ đợi
         return res.status(201).json({
-            message: "Mã xác thực đã được gửi đến email của bạn!",
+            message: "Hệ thống đang gửi mã xác thực đến email của bạn. Vui lòng chờ trong giây lát!",
             email: email
         });
 
