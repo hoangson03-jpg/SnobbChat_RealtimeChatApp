@@ -3,16 +3,20 @@ import dotenv from "dotenv";
 
 export const sendOTP = async (email, otp) => {
     try {
-
         console.log("kiem tra email:", process.env.EMAIL_USER);
-        console.log("kiem tra pass:", process.env.EMAIL_PASS ? "Đã có mật khẩu" : "BỊ UNDEFINED");
+        
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            // service: 'gmail',
+            
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true, 
+            
             auth: {
                 user: process.env.EMAIL_USER, 
                 pass: process.env.EMAIL_PASS 
             },
-            // Ép Nodemailer dùng IPv4 để tránh lỗi ENETUNREACH (Network Unreachable)
+            // Bây giờ family: 4 mới thực sự có tác dụng!
             family: 4
         });
 
@@ -28,8 +32,9 @@ export const sendOTP = async (email, otp) => {
         };
 
         await transporter.sendMail(mailOptions);
-        console.log("Đã gửi OTP đến email:", email);
+        console.log("Đã gửi OTP thành công đến email:", email);
     } catch (error) {
         console.error("Lỗi khi gửi email:", error);
+        throw error; 
     }
 };
