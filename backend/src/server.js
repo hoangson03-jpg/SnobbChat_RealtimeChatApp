@@ -19,7 +19,7 @@ import { startSyncWorker } from "./workers/syncWorker.js";
 dotenv.config();
 
 const PORT = 3000; // Ép cứng cổng 3000 để debug cho dễ
-
+app.set("trust proxy", 1);
 // middleware
 app.use(cors({origin: [process.env.CLIENT_URL, "http://localhost:5173"], credentials: true}))
 app.use(express.json());
