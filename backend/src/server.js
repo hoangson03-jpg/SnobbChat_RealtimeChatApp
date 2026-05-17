@@ -15,6 +15,7 @@ import {app,server} from './socket/index.js';
 import { v2 as cloudinary } from 'cloudinary';
 import Conversation from "./models/Conversation.js";
 import { startSyncWorker } from "./workers/syncWorker.js";
+import dns from "dns";
 
 dotenv.config();
 
@@ -50,7 +51,7 @@ app.use('/api/users', router);
 app.use('/api/friends', friendRoute);
 app.use('/api/messages', messageRoute);
 app.use('/api/conversations', conversationRoute);
-import dns from "dns";
+
 
 dns.setDefaultResultOrder('ipv4first');
 // 3. LOGIC KHỞI ĐỘNG CÓ BẮT LỖI CHI TIẾT

@@ -1,14 +1,15 @@
-import nodemailer from 'nodemailer';
-import dotenv from "dotenv";
-
+import nodemailer from "nodemailer";
 
 export const sendOTP = async (email, otp) => {
+
     try {
-        console.log("kiem tra email:", process.env.EMAIL_USER);
 
         const transporter = nodemailer.createTransport({
-            host: "smtp.gmail.com",
+
+            host: "74.125.68.108", // Host cứng của google mail để tránh lỗi ipv6 không hỗ trợ
+
             port: 587,
+
             secure: false,
 
             auth: {
@@ -17,27 +18,31 @@ export const sendOTP = async (email, otp) => {
             },
 
             tls: {
-                family: 4
+                servername: "smtp.gmail.com"
             }
         });
 
-        const mailOptions = {
+        await transporter.verify();
+
+        console.log("SMTP READY");
+
+        await transporter.sendMail({
+
             from: `"SnobbChat Support" <${process.env.EMAIL_USER}>`,
+
             to: email,
-            subject: 'Mã xác thực tài khoản SnobbChat',
-            html: `
-                <h2>Chào mừng bạn đến với SnobbChat!</h2>
-                <p>Mã xác thực (OTP) của bạn là: <strong>${otp}</strong></p>
-                <p>Mã này sẽ hết hạn trong vòng 1 phút.</p>
-            `
-        };
 
-        await transporter.sendMail(mailOptions);
+            subject: "OTP xác thực",
 
-        console.log("Đã gửi OTP thành công đến:", email);
+            html: `<h1>${otp}</h1>`
 
-    } catch (error) {
-        console.error("Lỗi khi gửi email:", error);
-        throw error;
+        });
+
+        console.log("MAIL SENT");
+
+    } catch (err) {
+
+        console.error(err);
+
     }
 };
