@@ -1,17 +1,19 @@
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 export const sendOTP = async (email, otp) => {
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
-            }
+            },
+
+            family: 4 
         });
 
-        // Không nhất thiết phải transporter.verify() mỗi lần gửi để giảm độ trễ
-        
         await transporter.sendMail({
             from: `"SnobbChat Support" <${process.env.EMAIL_USER}>`,
             to: email,
@@ -19,7 +21,7 @@ export const sendOTP = async (email, otp) => {
             html: `<h1>Mã OTP của bạn là: ${otp}</h1>`
         });
 
-        console.log("MAIL SENT TO:", email);
+        console.log("MAIL SENT SUCCESS via IPv4");
     } catch (err) {
         console.error("LỖI GỬI MAIL:", err);
     }
