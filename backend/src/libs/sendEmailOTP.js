@@ -11,7 +11,9 @@ export const sendOTP = async (email, otp) => {
             auth: {
                 user: process.env.EMAIL_USER, 
                 pass: process.env.EMAIL_PASS 
-            }
+            },
+            // Ép Nodemailer dùng IPv4 để tránh lỗi ENETUNREACH (Network Unreachable)
+            family: 4
         });
 
         const mailOptions = {
