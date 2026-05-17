@@ -1,5 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
+import dns from 'node:dns';
+dns.setDefaultResultOrder('ipv4first');
 import { connectDB } from "./libs/db.js";
 import authRoute from "./routes/authRoute.js";
 import cookieParser from "cookie-parser";
@@ -15,7 +17,7 @@ import {app,server} from './socket/index.js';
 import { v2 as cloudinary } from 'cloudinary';
 import Conversation from "./models/Conversation.js";
 import { startSyncWorker } from "./workers/syncWorker.js";
-import dns from "dns";
+
 
 dotenv.config();
 
@@ -52,8 +54,6 @@ app.use('/api/friends', friendRoute);
 app.use('/api/messages', messageRoute);
 app.use('/api/conversations', conversationRoute);
 
-
-dns.setDefaultResultOrder('ipv4first');
 // 3. LOGIC KHỞI ĐỘNG CÓ BẮT LỖI CHI TIẾT
 const startServer = () => {
     try {
