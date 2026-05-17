@@ -1,17 +1,21 @@
 import nodemailer from "nodemailer";
+import dns from "node:dns"; // Import thêm dns
 
 export const sendOTP = async (email, otp) => {
     try {
         const transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
-            port: 587,
-            secure: false, // false cho port 587
+            port: 465, // Chuyển sang port 465 ổn định hơn cho SSL
+            secure: true, 
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
             },
-            tls: {
-                rejectUnauthorized: false // Bỏ qua kiểm tra chứng chỉ nếu cần
+            // LỚP KHÓA 1: Ép dùng IPv4 ở mức socket
+            family: 4, 
+            // LỚP KHÓA 2: Ép DNS chỉ tìm địa chỉ IPv4
+            lookup: (hostname, options, callback) => {
+                dns.lookup(hostname, { family: 4 }, callback);
             }
         });
 
@@ -21,7 +25,7 @@ export const sendOTP = async (email, otp) => {
             from: `"SnobbChat Support" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "Mã OTP xác thực",
-            text: `Mã OTP của bạn là: ${otp}`, // Thêm cả text thuần
+            text: `Mã OTP của bạn là: ${otp}`,
             html: `<b>Mã OTP của bạn là: ${otp}</b>`
         });
 
