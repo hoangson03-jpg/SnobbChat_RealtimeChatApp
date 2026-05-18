@@ -2,6 +2,7 @@ import {create} from 'zustand';
 import {toast} from 'sonner';
 import authService from '@/services/authService';
 import type { AuthState } from '@/types/store';
+import axios from 'axios'
 import { data } from 'react-router';
 import { persist } from 'zustand/middleware';
 import { useChatStore } from './useChatStore';
@@ -134,25 +135,33 @@ export const useAuthStore = create<AuthState>()(
     },
 
     refresh: async () => {
-        try {
-            set({loading: true});
-            const {user, fetchMe, setAcessToken} = get();
-            const accessToken = await authService.refresh();
+    try {
+        set({ loading: true });
+        const { user, fetchMe, setAcessToken } = get();
+        const accessToken = await authService.refresh();
 
-            setAcessToken(accessToken);
+        setAcessToken(accessToken);
 
-            if(!user){
-                await fetchMe();
+        if (!user) {
+            await fetchMe();
+        }
+    } catch (error) {
+        console.error(error);
+
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            if (status === 403) {
+                toast.warning("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
             }
-        } catch (error) {
-            console.error(error);
-            toast.warning("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!")
-            get().clearState();
+        } else {
+            // Xử lý các lỗi khác không phải từ API (ví dụ: lỗi mạng, lỗi code frontend,...)
         }
-        finally{
-            set({loading: false});
-        }
-    },
+
+        get().clearState();
+    } finally {
+        set({ loading: false });
+    }
+},
 
     setAcessToken: async (accessToken) => {
         set({accessToken});

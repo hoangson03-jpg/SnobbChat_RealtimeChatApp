@@ -1,6 +1,8 @@
 import { chatService } from "@/services/chatService";
 import type { ChatState } from "@/types/store";
 import { create } from "zustand";
+import axios from "axios";
+import {toast} from "sonner";
 import { persist } from "zustand/middleware";
 import { useAuthStore } from "./useAuthStore";
 import type { Conversation, Message } from "@/types/chat";
@@ -96,69 +98,90 @@ export const useChatStore = create<ChatState>()(
                     }
                 },
                 sendDirectMessage: async (recipientId, content, imgURL, providedTempId?: string) => {
-                    const { activeConversationId, addMessage, addMessageToQueue, replaceTempMessage } = get();
-                    const currentUser = useAuthStore.getState().user;
+                const { activeConversationId, addMessage, addMessageToQueue, replaceTempMessage } = get();
+                const currentUser = useAuthStore.getState().user;
 
-                    const tempId = providedTempId || `temp_${Date.now()}`;
-                    const tempMessage: Message = {
-                        _id: tempId,
-                        tempId: tempId,
-                        conversationId: activeConversationId || "temp_convo",
-                        senderId: currentUser?._id || "",
+                const tempId = providedTempId || `temp_${Date.now()}`;
+                const tempMessage: Message = {
+                    _id: tempId,
+                    tempId: tempId,
+                    conversationId: activeConversationId || "temp_convo",
+                    senderId: currentUser?._id || "",
+                    content,
+                    createdAt: new Date().toISOString(),
+                    isOwn: true,
+                    status: 'pending' // Đang hiển thị đồng hồ cát
+                };
+
+                if (!providedTempId) {
+                    addMessage(tempMessage); // Hiện ngay lên UI
+                }
+
+                try {
+                    const res = await chatService.sendDirectMessage(
+                        recipientId,
                         content,
-                        createdAt: new Date().toISOString(),
-                        isOwn: true,
-                        status: 'pending' // Hiển thị đồng hồ cát ở UI
-                    };
+                        imgURL,
+                        activeConversationId || undefined,
+                        tempId
+                    );
 
-                    if (!providedTempId) {
-                        addMessage(tempMessage); // Hiện ngay lên UI
+                    if (!res) throw new Error("Network_Error");
+
+                    if (res.status === 'queued') {
+                        return;
                     }
 
-                    try {
-                        const res = await chatService.sendDirectMessage(
-                            recipientId,
-                            content,
-                            imgURL,
-                            activeConversationId || undefined,
-                            tempId // THÊM DÒNG NÀY ĐỂ TRUYỀN XUỐNG SERVICE
-                        );
-
-
-                        // Nếu rớt mạng, API trả về undefined -> Ép văng lỗi để lọt xuống catch
-                        if (!res) {
-                            throw new Error("Không nhận được phản hồi từ Server (Có thể do rớt mạng)");
-                        }
-
-                        // Nếu Backend trả về dạng queued (mất mạng DB, nhưng backend vẫn sống)
-                        if (res.status === 'queued') {
-                            console.warn("Tin nhắn đã đưa vào Queue của Redis backend");
-                            return; // Cứ để status là pending
-                        }
-
-                        // Nếu gửi thành công, thay thế tin nhắn tạm bằng tin nhắn thật từ backend
-                        if (activeConversationId) {
-                            replaceTempMessage(activeConversationId, tempId, res.message);
-                        }
-
-                        // Sau khi gửi thành công, cập nhật seenBy
-                        set((state) => ({
-                            conversations: state.conversations.map((c) => 
-                                c._id === activeConversationId ? {...c, seenBy:[]} : c
-                            )
-                        }));
-                    } catch (error: any) {
-                        console.error("Lỗi xảy ra khi create direct message (Mất mạng)", error);
-                        
-                        // NẾU MẤT MẠNG HOÀN TOÀN: Đẩy vào Queue của Zustand để gửi lại sau
-                        addMessageToQueue({
-                            tempId,
-                            type: 'direct',
-                            recipientId,
-                            content
-                        });
+                    if (activeConversationId) {
+                        replaceTempMessage(activeConversationId, tempId, res.message);
                     }
-                },
+
+                    set((state) => ({
+                        conversations: state.conversations.map((c) => 
+                            c._id === activeConversationId ? {...c, seenBy:[]} : c
+                        )
+                    }));
+
+                } catch (error: any) {
+
+                    if (axios.isAxiosError(error) && error.response) {
+                        const status = error.response.status;
+
+                        if (status === 403 || status === 400) {
+                            const errorMessage = error.response.data?.message || "Không thể gửi tin nhắn.";
+                            toast.error(errorMessage);
+
+                            set((state) => {
+                                const convoId = activeConversationId || "temp_convo";
+                                const convoMessages = state.messages[convoId];
+                                if (!convoMessages) return state;
+
+                                return {
+                                    messages: {
+                                        ...state.messages,
+                                        [convoId]: {
+                                            ...convoMessages,
+                                            items: convoMessages.items.map((msg) =>
+                                                msg._id === tempId ? { ...msg, status: 'error' } : msg
+                                            )
+                                        }
+                                    }
+                                };
+                            });
+                            
+                            return; 
+                        }
+                    }
+
+                    console.error("Mất mạng, tin nhắn sẽ được gửi khi có mạng trở lại");
+                    addMessageToQueue({
+                        tempId,
+                        type: 'direct',
+                        recipientId,
+                        content
+                    });
+                }
+            },
                 sendGroupMessage: async (
                     conversationId: string,
                     content: string,
@@ -543,7 +566,10 @@ export const useChatStore = create<ChatState>()(
         }),
     {
         name: "chat-storage",
-        partialize: (state) => ({ conversations: state.conversations }) 
+        partialize: (state) => ({ 
+            conversations: state.conversations,
+            offlineQueue: state.offlineQueue
+         })
         // Khi reload trang thì danh sách chat vẫn được giữ lại
         // Không lưu danh sách tin nhắn vì nếu hacker chỉ thấy id của cuộc hội thoại thì cũng không sao
     })

@@ -16,7 +16,7 @@ const ChatWindowBody = () => {
     
     const selectedConvo = conversations.find((c) => c._id === activeConversationId);
 
-    const [lastMessageStatus, setLastMessageStatus] = useState<"delivered"|"seen">("delivered");
+    const [lastMessageStatus, setLastMessageStatus] = useState<"pending" | "error" | "delivered" | "seen">("delivered");
 
     // ref - tham chiếu cho thẻ div ở cuối trang
     const messagesEndRef = useRef<HTMLDivElement>(null);

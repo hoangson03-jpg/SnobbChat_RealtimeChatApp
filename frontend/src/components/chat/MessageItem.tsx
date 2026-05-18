@@ -6,6 +6,7 @@ import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { replaceTextWithEmoji } from '@/lib/emojiMap';
 import { Clock } from '@phosphor-icons/react/dist/icons/Clock';
+import { WarningCircle } from '@phosphor-icons/react';
 
 
 interface MessageItemProps {
@@ -13,7 +14,7 @@ interface MessageItemProps {
     index: number;
     messages: Message[];
     selectedConvo: Conversation;
-    lastMessageStatus: "delivered" | "seen"
+    lastMessageStatus: "pending" | "error" | "delivered" | "seen";
 }
 
 const MessageItem = ({message, index, messages, selectedConvo, lastMessageStatus} : MessageItemProps) => {
@@ -70,7 +71,7 @@ const isBigEmoji = checkIsBigEmoji(parsedContent);
     <div className="flex flex-col w-full">
         {/* 1. TIN NHẮN */}
         <div className={cn('flex gap-2 mb-1', isOwn ? "flex-row-reverse" : "flex-row")}>
-            {/* Avatar - Chỉ hiện cho đối phương */}
+            {/* Avatar */}
             {!isOwn ? (
                 <div className='w-8 flex-shrink-0'>
                     {isGroupBreak && (
@@ -97,18 +98,31 @@ const isBigEmoji = checkIsBigEmoji(parsedContent);
                 </Card>
                 
                 {/* Status: Seen / Delivered (Chỉ hiện cho tin nhắn cuối cùng của mình) */}
-                {isOwn && index === 0 && (
+                {isOwn && (index === 0 || message.status === 'pending' || message.status === 'error') && (
                     <div className="flex items-center gap-1 mt-1 justify-end">
-                        {/* NẾU LÀ TIN NHẮN TẠM THỜI (PENDING) */}
-                        {message.status === 'pending' ? (
+                        
+                        {/* 1: Đang gửi (Mạng lag) */}
+                        {message.status === 'pending' && (
                             <span className="flex items-center text-[10px] text-muted-foreground">
                                 <Clock className="w-3 h-3 mr-1 animate-pulse" /> Đang gửi...
                             </span>
-                        ) : (
-                            <span className="text-[10px] text-muted-foreground lowercase">
-                                {lastMessageStatus}
+                        )}
+
+                        {/* 2: LỖI (Bị chặn, 403, mất mạng hoàn toàn) */}
+                        {message.status === 'error' && (
+                            <span className="flex items-center text-[10px] text-red-500 font-medium">
+                                <WarningCircle className="w-3 h-3 mr-1" /> Không thể gửi
                             </span>
                         )}
+
+                        {/* 3: Gửi thành công (Chỉ hiện cho tin cuối cùng) */}
+                        {message.status !== 'pending' && message.status !== 'error' && index === 0 && (
+                            <span className="text-[10px] text-muted-foreground lowercase">
+                                {/* Nếu component cha (ChatWindowBody) truyền xuống là 'seen' thì hiện đã xem, còn lại là đã gửi */}
+                                {lastMessageStatus === 'seen' ? 'đã xem' : 'đã gửi'}
+                            </span>
+                        )}
+                        
                     </div>
                 )}
             </div>
