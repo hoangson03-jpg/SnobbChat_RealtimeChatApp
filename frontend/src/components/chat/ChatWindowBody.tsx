@@ -3,9 +3,12 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ChatWelcomeScreen from './ChatWelcomeScreen';
 import MessageItem from './MessageItem';
 import InfiniteScroll from 'react-infinite-scroll-component';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 const ChatWindowBody = () => {
-    const {activeConversationId, conversations, messages: allMessages, fetchMessages} = useChatStore();
+    const {activeConversationId, conversations, messages: allMessages, fetchMessages, markAsSeen} = useChatStore();
+
+    const { user } = useAuthStore();
     // const {user} = useChatStore();
 
     const messages = allMessages[activeConversationId!]?.items ?? [];
@@ -28,6 +31,15 @@ const ChatWindowBody = () => {
     const isNewConnection = messages.length === 0;
 
     useEffect(() => {
+        if (activeConversationId && selectedConvo && user) {
+            const myUnreadCount = selectedConvo.unreadCounts?.[user._id] ?? 0;
+            if (myUnreadCount > 0) {
+                markAsSeen();
+            }
+        }
+    }, [activeConversationId, selectedConvo?.unreadCounts, user?._id]);
+
+    useEffect(() => {
         const lastMessage = selectedConvo?.lastMessage;
         if(!lastMessage) {
             return;
@@ -44,6 +56,7 @@ const ChatWindowBody = () => {
     useEffect(() => {
         console.log("seenBy:", selectedConvo?.seenBy);
     }, [selectedConvo]);
+
 
     useLayoutEffect(() => {
         if(!messagesEndRef.current) { // Kiểm tra nếu Ref chưa trỏ tới bất cứ phần tử DOM nào

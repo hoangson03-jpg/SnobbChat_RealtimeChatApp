@@ -25,6 +25,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
         socket.on("connect", () => {
             console.log("Đã kết nối với socket");
+            useChatStore.getState().fetchConversations();
         });
         // online users
         socket.on("online-users", (userIds) => {
@@ -65,6 +66,16 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         }
     });
 
+
+        // seen update
+        socket.on("read-message", ({ conversation }) => {
+             console.log("READ MESSAGE SOCKET:", conversation);
+            useChatStore.getState().updateConversation({
+                _id: conversation._id,
+                seenBy: conversation.seenBy,
+                unreadCounts: conversation.unreadCounts
+            });
+        });
         // new conversation (direct chat)
         socket.on("new-conversation", ({ conversation }) => {
             console.log("Dữ liệu nhận từ socket:", conversation);
@@ -100,16 +111,16 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
         // Backend báo đã lưu thành công tin nhắn kẹt từ Redis vào MongoDB
         socket.on("message-synced-success", ({ tempId, realMessage }) => {
-    const chatStore = useChatStore.getState();
-    const convoId = realMessage.conversationId;
+            const chatStore = useChatStore.getState();
+            const convoId = realMessage.conversationId;
 
-    chatStore.replaceTempMessage(convoId, tempId, realMessage);
+            chatStore.replaceTempMessage(convoId, tempId, realMessage);
 
-    chatStore.updateConversation({
-        _id: convoId,
-        lastMessage: realMessage,
-        lastMessageAt: realMessage.createdAt
-    });
+            chatStore.updateConversation({
+                _id: convoId,
+                lastMessage: realMessage,
+                lastMessageAt: realMessage.createdAt
+            });
 
     // 🚨 mark message đã sync để socket không add lại
     chatStore.markMessageAsSynced(realMessage._id);

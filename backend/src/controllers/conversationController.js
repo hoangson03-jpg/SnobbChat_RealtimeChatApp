@@ -167,11 +167,18 @@ export const getConversation = async (req, res) => {
           joinedAt: p.joinedAt
       }));
 
+      let unreadObj = {};
+      if (convoObj.unreadCounts) {
+          unreadObj = convoObj.unreadCounts instanceof Map 
+              ? Object.fromEntries(convoObj.unreadCounts) 
+              : convoObj.unreadCounts;
+      }
+
       return {
         ...convoObj,
         participants,
         lastMessage: effectiveLastMessage, // Trả về null nếu đã bị xóa
-        unreadCounts: convoObj.unreadCounts || {},
+        unreadCounts: unreadObj // Đảm bảo trả về object bình thường cho Frontend, dù lưu dưới dạng Map hay Object
       };
     })
     // - Nếu là Direct Message (1-1) mà lastMessage là null (do vừa xóa xong) -> Ẩn luôn khỏi danh sách bên trái.
@@ -299,39 +306,72 @@ export const markAsSeen = async (req, res) => {
         }
 
         if(last.senderId.toString() === userId) {
-            return res.status(200).json({message: "Sender klhoong cần mark as seen"})
+            return res.status(200).json({message: "Sender không cần mark as seen"})
         }
 
+        // 1. Thực hiện update (Lệnh $set này của MongoDB chạy được trên cả Map và Object thường trong DB)
         const updated = await Conversation.findByIdAndUpdate(
-  conversationId,
-  {
-    $addToSet: { seenBy: userId },
-    $set: { [`unreadCounts.${userId}`]: 0 },
-  },
-  { returnDocument: "after" }
-)
-.populate("participants.userId", "displayName avatarURL")
-.populate("seenBy", "displayName avatarURL")
-.populate("lastMessage.senderId", "displayName avatarURL");
+            conversationId,
+            {
+                $addToSet: { seenBy: userId },
+                $set: { [`unreadCounts.${userId}`]: 0 },
+            },
+            { returnDocument: 'after' }
+        )
+        .populate("participants.userId", "displayName avatarURL")
+        .populate("seenBy", "displayName avatarURL")
+        .populate("lastMessage.senderId", "displayName avatarURL");
 
-const formatted = {
-  ...updated.toObject(),
-  participants: (updated.participants || []).map((p) => ({
-    _id: p.userId?._id,
-    displayName: p.userId?.displayName,
-    avatarURL: p.userId?.avatarURL ?? null,
-    joinedAt: p.joinedAt
-  }))
-};
+        if (!updated) {
+            return res.status(404).json({message: "Không tìm thấy cuộc trò chuyện"});
+        }
 
-       io.to(conversationId).emit("read-message", {
-    conversation: formatted,
-});
+        const updatedObj = updated.toObject();
+
+        let unreadObj = {};
+        if (updatedObj.unreadCounts) {
+            if (updatedObj.unreadCounts instanceof Map) {
+                // Nếu là Map của Mongoose
+                unreadObj = Object.fromEntries(updatedObj.unreadCounts);
+            } else if (typeof updatedObj.unreadCounts.entries === 'function') {
+                // Nếu là Map thuần JS
+                unreadObj = Object.fromEntries(updatedObj.unreadCounts);
+            } else {
+                // Nếu DB chưa migrate (vẫn là Object thường) -> Giữ nguyên Object
+                unreadObj = updatedObj.unreadCounts || {};
+            }
+        }
+
+        const formatted = {
+            ...updatedObj,
+            unreadCounts: unreadObj, 
+            participants: (updatedObj.participants || []).map((p) => ({
+                _id: p.userId?._id,
+                displayName: p.userId?.displayName,
+                avatarURL: p.userId?.avatarURL ?? null,
+                joinedAt: p.joinedAt
+            }))
+        };
+
+        // Bắn Socket cho room
+        io.to(conversationId).emit("read-message", {
+            conversation: formatted,
+        });
+
+        if (formatted.participants && formatted.participants.length > 0) {
+            formatted.participants.forEach((p) => {
+                const memberId = p._id || p.userId; 
+                if (memberId) {
+                    io.to(memberId.toString()).emit("read-message", {
+                        conversation: formatted,
+                    });
+                }
+            });
+        }
 
         return res.status(200).json(formatted);
     } catch (error) {
-        console.error("Lỗi khi mark as seen ", error);
+        console.error("Lỗi chi tiết khi mark as seen:", error);
         return res.status(500).json({message: "Lỗi hệ thống!"});
     }
 }
-

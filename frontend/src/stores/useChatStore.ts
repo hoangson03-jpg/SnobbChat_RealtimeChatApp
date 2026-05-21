@@ -339,7 +339,7 @@ export const useChatStore = create<ChatState>()(
                 updateConversation: async (conversation: Partial<Conversation>) => {
                     set((state) => ({
                         conversations: state.conversations.map((c) =>
-                        c._id === conversation._id
+                        String(c._id) === String(conversation._id)
                             ? {
                                 ...c,
                                 ...conversation,
@@ -409,38 +409,42 @@ export const useChatStore = create<ChatState>()(
                         const { activeConversationId, conversations } = get();
 
                         if (!activeConversationId || !user) {
-                        return;
+                            return;
                         }
 
-                        const convo = conversations.find((c) => c._id === activeConversationId);
+                        const convo = conversations.find((c) => String(c._id) === String(activeConversationId));
 
                         if (!convo) {
-                        return;
+                            return;
                         }
 
                         // Không có unread thì không cần gọi API
                         if ((convo.unreadCounts?.[user._id] ?? 0) === 0) {
-                        return;
+                            return;
                         }
 
                         // Gọi API và lấy data mới từ backend
-                        const updated = await chatService.markAsSeen(activeConversationId);
+                        const responseData = await chatService.markAsSeen(activeConversationId);
 
-                        // Nếu backend không trả data → fallback (tránh crash)
-                        if (!updated) {
-                        console.warn("markAsSeen không trả về conversation");
-                        return;
+                        if (!responseData) {
+                            console.warn("markAsSeen không trả về conversation");
+                            return;
                         }
+
+                        const updated = responseData.conversation || responseData;
+
+                        if (!updated || !updated._id) return;
 
                         // Sync lại toàn bộ conversation từ backend
                         set((state) => ({
                             conversations: state.conversations.map((c) =>
-                                c._id === updated._id
+                                
+                                String(c._id) === String(updated._id)
                                 ? {
                                     ...c,
                                     seenBy: updated.seenBy,
                                     unreadCounts: updated.unreadCounts,
-                                    }
+                                  }
                                 : c
                             ),
                         }));
@@ -450,7 +454,7 @@ export const useChatStore = create<ChatState>()(
                     }
                 },
                 addConvo: (convo, setActive = false) => {
-                    console.log("🔥 Đang thêm conversation vào store:", convo);
+                    console.log("Đang thêm conversation vào store:", convo);
                         set((state) => {
                         const exists = state.conversations.find((c) => c._id.toString() === convo._id.toString());
 

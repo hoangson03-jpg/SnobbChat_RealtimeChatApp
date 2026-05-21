@@ -32,6 +32,7 @@ import {
 import { toast } from 'sonner'
 
 const DirectMessageCard = ({convo} : {convo: Conversation}) => {
+    const markAsSeen = useChatStore(s => s.markAsSeen);
     const {user} = useAuthStore();
     const activeConversationId = useChatStore(s => s.activeConversationId);
     const setActiveConversation = useChatStore(s => s.setActiveConversation);
