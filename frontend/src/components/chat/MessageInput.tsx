@@ -1,8 +1,8 @@
 import { useAuthStore } from '@/stores/useAuthStore'
 import type { Conversation } from '@/types/chat';
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Button } from '../ui/button';
-import { ImagePlus, Send } from 'lucide-react';
+import { ImagePlus, Send, X, Loader2 } from 'lucide-react';
 import { Input } from '../ui/input';
 import EmojiPicker from './EmojiPicker';
 import { useChatStore } from '@/stores/useChatStore';
@@ -10,12 +10,16 @@ import { toast } from 'sonner';
 
 const MessageInput = ({selectedConvo}  : {selectedConvo: Conversation}) => {
   const {user} = useAuthStore();
-  const {sendDirectMessage, sendGroupMessage} = useChatStore();
+  const {sendDirectMessage, sendGroupMessage, sendImageMessage} = useChatStore();
   const [value, setValue] = useState("");
 
   if(!user){
     return;
   }
+
+  // biến lưu trữ file ảnh được chọn
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const sendMessage = async () => {
     if(!value.trim) return null;
@@ -44,10 +48,48 @@ const MessageInput = ({selectedConvo}  : {selectedConvo: Conversation}) => {
     }
   }
 
+  // xử lý khi gửi ảnh
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+        toast.error("Vui lòng chọn định dạng ảnh hợp lệ");
+        return;
+    }
+    try {
+        setIsUploading(true);
+        const recipientId = selectedConvo.type === "direct" 
+            ? selectedConvo.participants.find(p => p._id !== user._id)?._id 
+            : undefined;
+
+        await sendImageMessage(selectedConvo._id, selectedConvo.type, file, recipientId);
+
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+        toast.error("Lỗi khi tải ảnh lên!");
+    } finally {
+        setIsUploading(false);
+    }
+  }
+
   return (
     <div className='flex items-center gap-2 p-3 min-h-[56px] bg-background'>
-      <Button variant="ghost" size="icon" className="hover:bg-primary/10 transition-smooth">
-        <ImagePlus className='size-4'/>
+      <input 
+        type="file" 
+        hidden 
+        ref={fileInputRef} 
+        accept="image/*" 
+        onChange={handleImageChange} 
+      />
+      
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="hover:bg-primary/10 transition-smooth relative"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isUploading}
+      >
+        {isUploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className='size-4'/>}
       </Button>
 
       <div className='flex-1 relative'>

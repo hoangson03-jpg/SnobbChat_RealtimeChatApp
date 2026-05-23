@@ -50,7 +50,7 @@ export interface Message {
   conversationId: string;
   senderId: string;
   content: string | null;
-  imgUrl?: string | null;
+  imgURL?: string | null;
   createdAt: string;
   updatedAt?: string;
 

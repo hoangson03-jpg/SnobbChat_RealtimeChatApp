@@ -86,6 +86,19 @@ const isBigEmoji = checkIsBigEmoji(parsedContent);
 
             {/* Khối nội dung */}
             <div className={cn("max-w-[70%] flex flex-col", isOwn ? "items-end" : "items-start")}>
+                {message.imgURL ? (
+                    <div className={cn(
+                        "relative overflow-hidden rounded-2xl border border-border/50 bg-muted/20",
+                        isOwn ? "rounded-br-none" : "rounded-bl-none"
+                    )}>
+                        <img 
+                            src={message.imgURL} 
+                            alt="Sent image" 
+                            className="max-w-[200px] sm:max-w-[250px] max-h-[300px] object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                            loading="lazy"
+                        />
+                    </div>
+                ) : (
                 <Card className={cn(
                     "p-3 rounded-2xl shadow-none border-none transition-all", 
                     isBigEmoji 
@@ -96,7 +109,7 @@ const isBigEmoji = checkIsBigEmoji(parsedContent);
                         {parsedContent}
                     </p>
                 </Card>
-                
+                )}
                 {/* Status: Seen / Delivered (Chỉ hiện cho tin nhắn cuối cùng của mình) */}
                 {isOwn && (index === 0 || message.status === 'pending' || message.status === 'error') && (
                     <div className="flex items-center gap-1 mt-1 justify-end">

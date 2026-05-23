@@ -37,6 +37,21 @@ export const chatService = {
         });
         return response.data;
     },
+    sendImageMessage: async (conversationId: string, type: "direct" | "group", file: File, recipientId?: string) => {
+        const formData = new FormData();
+        formData.append("image", file);
+        formData.append("type", type);
+        
+        if (conversationId) formData.append("conversationId", conversationId);
+        if (recipientId) formData.append("recipientId", recipientId);
+
+        const response = await api.post('/messages/upload-image', formData, {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            }
+        });
+        return response.data;
+    },
     async markAsSeen(conversationId: string) {
         const res = await api.patch(`/conversations/${conversationId}/seen`);
         return res.data;

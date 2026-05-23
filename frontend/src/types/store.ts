@@ -72,6 +72,13 @@ export interface ChatState {
         imgURL?: string,
         providedTempId?: string
     ) => Promise<void>;
+
+    sendImageMessage: (
+        conversationId: string,
+        type: "direct" | "group",
+        file: File,
+        recipientId?: string
+    ) => Promise<void>;
     // add message
     addMessage: (message: Message) => Promise<void>;
     // update convo

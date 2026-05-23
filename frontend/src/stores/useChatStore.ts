@@ -192,7 +192,7 @@ export const useChatStore = create<ChatState>()(
                     // Giả sử useAuthStore.getState().user trả về object User hiện tại
                     const currentUser = useAuthStore.getState().user;
 
-                    // 1. TẠO TIN NHẮN TẠM THỜI (Optimistic UI)
+                    // 1. tạo tin nhắn tạm thời (Optimistic UI)
                     const tempId = providedTempId || `temp_group_${Date.now()}`; 
                     const tempMessage: Message = {
                         _id: tempId,
@@ -259,8 +259,6 @@ export const useChatStore = create<ChatState>()(
 
                     } catch (error) {
                         console.error("Lỗi khi gửi tin nhắn nhóm:", error);
-
-                        // FIX TYPE: Xử lý Record<string, { items: Message[] }> đúng cách trong khối catch
                         set((state) => {
                             const convoMessages = state.messages[conversationId];
                             if (!convoMessages) return state; // Nếu không tìm thấy, giữ nguyên state
@@ -285,6 +283,17 @@ export const useChatStore = create<ChatState>()(
                             conversationId: conversationId,
                             content: content
                         });
+                    }
+                },
+                sendImageMessage: async (conversationId: string, type: 'direct' | 'group', file: File, recipientId?: string) => {
+                    try {
+                        await chatService.sendImageMessage(conversationId, type, file, recipientId);
+
+                        // Không cần làm gì thêm ở Frontend vì Socket "new-message" 
+                        // ở backend bắn về sẽ tự động update UI cho cả sender và receiver
+                    } catch (error) {
+                        console.error("Lỗi gửi ảnh", error);
+                        throw error;
                     }
                 },
                 addMessage: async (message) => {
